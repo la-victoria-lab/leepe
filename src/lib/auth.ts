@@ -1,7 +1,10 @@
 export const allowedEmailDomain = 'lavictoria.pe'
-export const adminEmails = [
-  'fabio@lavictoria.pe'
-]
+const envAdmins = (process.env.ADMIN_EMAILS || '')
+  .split(',')
+  .map((e) => e.trim())
+  .filter(Boolean)
+
+export const adminEmails = ['fabio@lavictoria.pe', ...envAdmins]
 
 export type UserRole = 'admin' | 'user'
 
@@ -12,11 +15,9 @@ export function isAllowedCompanyEmail(email: string) {
 
 export function isAdminEmail(email: string): boolean {
   const normalizedEmail = email.trim().toLowerCase()
-  return adminEmails.some(adminEmail => adminEmail.trim().toLowerCase() === normalizedEmail)
+  return adminEmails.some((adminEmail) => adminEmail.trim().toLowerCase() === normalizedEmail)
 }
 
 export function getRoleForEmail(email: string): UserRole {
   return isAdminEmail(email) ? 'admin' : 'user'
 }
-
-
