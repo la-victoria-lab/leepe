@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'LEE:PE - Sistema de Gestión de Libros',
-    short_name: 'LEE:PE',
+    name: 'LEE(PE) - Sistema de Gestión de Libros',
+    short_name: 'LEE(PE)',
     description: 'Registra, presta y gestiona libros',
     start_url: '/',
     display: 'standalone',

@@ -1,16 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Plus, Trash2, BookIcon } from 'lucide-react'
+import { Pencil, Plus, Trash2, BookIcon, ChevronLeft, ChevronRight, Search, Loader2 } from 'lucide-react'
 
 interface Book {
   isbn: string
   titulo: string
-  autores: string | null // API might return string if converted
+  autores: string | null
   descripcion: string
   thumbnail: string
   image_path?: string
@@ -22,20 +22,19 @@ export default function BookCatalog() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [meta, setMeta] = useState<any>({})
+  const [meta, setMeta] = useState<{ last_page?: number; total?: number }>({})
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingBook, setEditingBook] = useState<Book | null>(null)
 
-  // Data load
-  const loadBooks = async (searchParams = '') => {
+  const loadBooks = async (searchQuery = '', pageNum = page) => {
     setLoading(true)
     try {
       const query = new URLSearchParams({
-        page: page.toString(),
-        limit: '10',
-        search: searchParams,
+        page: pageNum.toString(),
+        limit: '12',
+        search: searchQuery,
       })
       const res = await fetch(`/api/admin/books?${query}`)
       const data = await res.json()
@@ -48,15 +47,15 @@ export default function BookCatalog() {
     }
   }
 
-  // Initial load
-  useState(() => {
-    loadBooks()
-  })
+  useEffect(() => {
+    loadBooks(search, page)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    setPage(1) // Reset to page 1
-    loadBooks(search)
+    setPage(1)
+    loadBooks(search, 1)
   }
 
   const handleEdit = (book: Book) => {
@@ -65,12 +64,11 @@ export default function BookCatalog() {
   }
 
   const handleDelete = async (isbn: string) => {
-    if (!confirm('¿Estás seguro de eliminar este libro? Esta acción no se puede deshacer.')) return
-
+    if (!confirm('¿Eliminar este libro? Esta acción no se puede deshacer.')) return
     try {
       const res = await fetch(`/api/admin/books?isbn=${isbn}`, { method: 'DELETE' })
       if (res.ok) {
-        loadBooks(search)
+        loadBooks(search, page)
       } else {
         alert('Error al eliminar')
       }
@@ -83,24 +81,21 @@ export default function BookCatalog() {
     const data = {
       isbn: formData.get('isbn'),
       titulo: formData.get('titulo'),
-      autores: formData.get('autores'), // Handle as string or JSON array
+      autores: formData.get('autores'),
       descripcion: formData.get('descripcion'),
       thumbnail: formData.get('thumbnail'),
     }
 
-    const url = '/api/admin/books'
-    const method = editingBook ? 'PUT' : 'POST'
-
     try {
-      const res = await fetch(url, {
-        method,
+      const res = await fetch('/api/admin/books', {
+        method: editingBook ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
 
       if (res.ok) {
         setIsModalOpen(false)
-        loadBooks(search)
+        loadBooks(search, page)
       } else {
         const error = await res.json()
         alert(`Error: ${error.error}`)
@@ -110,122 +105,161 @@ export default function BookCatalog() {
     }
   }
 
+  const lastPage = meta.last_page || 1
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center gap-4">
-        <form
-          onSubmit={handleSearch}
-          className="flex-1 max-w-sm flex gap-2"
-        >
-          <Input
-            placeholder="Buscar por título, autor o ISBN..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="secondary"
+    <div className="flex flex-col h-full">
+      {/* ═══════════════════════════════════════════════════════════════════
+          STICKY TOOLBAR: Search + Pagination + Add Button
+          Always visible, no scrolling required to access controls
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="sticky top-0 z-20 bg-stone-50/95 backdrop-blur-md border-b border-stone-200/60 -mx-4 px-4 md:-mx-0 md:px-0 py-3 md:py-4 mb-4 md:mb-6">
+        <div className="flex items-center gap-3">
+          {/* Search Input */}
+          <form
+            onSubmit={handleSearch}
+            className="relative flex-1 max-w-md"
           >
-            Buscar
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+            <Input
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 h-10 md:h-11 rounded-xl bg-white border-stone-200 focus-visible:ring-violet-500 text-sm font-medium"
+            />
+          </form>
+
+          {/* Pagination Controls - Always Visible */}
+          <div className="flex items-center gap-1 bg-white rounded-xl border border-stone-200 p-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="h-8 w-8 rounded-lg hover:bg-violet-50 hover:text-violet-600 disabled:opacity-30"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-xs font-medium text-stone-600 px-2 min-w-[60px] text-center tabular-nums">
+              {page} / {lastPage}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              disabled={page >= lastPage}
+              onClick={() => setPage((p) => p + 1)}
+              className="h-8 w-8 rounded-lg hover:bg-violet-50 hover:text-violet-600 disabled:opacity-30"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Add Button */}
+          <Button
+            onClick={() => {
+              setEditingBook(null)
+              setIsModalOpen(true)
+            }}
+            size="icon"
+            className="h-10 w-10 md:h-11 md:w-11 rounded-xl bg-slate-900 hover:bg-slate-800 shadow-sm shrink-0"
+          >
+            <Plus className="h-5 w-5" />
           </Button>
-        </form>
-        <Button
-          onClick={() => {
-            setEditingBook(null)
-            setIsModalOpen(true)
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Libro
-        </Button>
+        </div>
+
+        {/* Total count indicator */}
+        {meta.total !== undefined && (
+          <p className="text-xs text-stone-400 mt-2 hidden md:block">
+            {meta.total} libro{meta.total !== 1 ? 's' : ''} en total
+          </p>
+        )}
       </div>
 
-      {loading ? (
-        <div className="text-center py-10">Cargando catálogo...</div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {books.length === 0 ? (
-            <div className="col-span-full text-center py-10 text-gray-500">No se encontraron libros</div>
-          ) : (
-            books.map((book) => (
+      {/* ═══════════════════════════════════════════════════════════════════
+          CONTENT: Book Grid (Scrollable)
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-0 md:px-0 pb-24 md:pb-8">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-stone-400">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-sm font-medium">Cargando...</p>
+          </div>
+        ) : books.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 text-stone-400">
+            <div className="bg-stone-100 p-5 rounded-2xl">
+              <BookIcon className="h-10 w-10" />
+            </div>
+            <div className="text-center">
+              <p className="font-medium text-stone-600">Sin resultados</p>
+              <p className="text-sm mt-1">Intenta con otra búsqueda</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {books.map((book) => (
               <Card
                 key={book.isbn}
-                className="overflow-hidden flex flex-col"
+                className="group overflow-hidden border-0 shadow-sm hover:shadow-lg transition-shadow duration-200 bg-white rounded-xl"
               >
-                <div className="relative aspect-[3/4] bg-gray-100">
+                {/* Cover Image */}
+                <div className="relative aspect-[2/3] bg-stone-100">
                   {book.thumbnail ? (
                     <img
                       src={book.thumbnail}
                       alt={book.titulo}
                       className="w-full h-full object-cover"
+                      loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                      <BookIcon size={48} />
+                    <div className="w-full h-full flex items-center justify-center text-stone-300">
+                      <BookIcon className="h-8 w-8" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2 flex gap-2">
+
+                  {/* Action Buttons */}
+                  <div className="absolute top-2 right-2 flex flex-col gap-1.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <Button
                       size="icon"
-                      variant="secondary"
-                      className="h-8 w-8 bg-white/90 hover:bg-white"
                       onClick={() => handleEdit(book)}
+                      className="h-8 w-8 rounded-lg bg-white/95 hover:bg-white text-stone-600 hover:text-violet-600 shadow-sm border border-stone-200/50"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       size="icon"
-                      variant="destructive"
-                      className="h-8 w-8"
                       onClick={() => handleDelete(book.isbn)}
+                      className="h-8 w-8 rounded-lg bg-white/95 hover:bg-white text-stone-600 hover:text-red-500 shadow-sm border border-stone-200/50"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
-                <CardContent className="p-4 flex-1 flex flex-col">
-                  <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{book.titulo}</h3>
-                  <p className="text-sm text-gray-500 mb-2 line-clamp-1">{book.autores}</p>
-                  <p className="text-xs text-gray-400 mt-auto font-mono">{book.isbn}</p>
+
+                {/* Book Info */}
+                <CardContent className="p-3">
+                  <h3
+                    className="font-semibold text-sm text-stone-800 line-clamp-2 leading-snug"
+                    title={book.titulo}
+                  >
+                    {book.titulo}
+                  </h3>
+                  <p className="text-xs text-stone-500 mt-1 line-clamp-1">{book.autores || 'Sin autor'}</p>
+                  <p className="text-[10px] text-stone-400 font-mono mt-2">{book.isbn}</p>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Pagination */}
-      <div className="flex justify-center gap-2 mt-6">
-        <Button
-          variant="outline"
-          disabled={page <= 1}
-          onClick={() => {
-            setPage((p) => p - 1)
-            loadBooks()
-          }}
-        >
-          Anterior
-        </Button>
-        <span className="flex items-center px-4 text-sm text-gray-600">
-          Página {page} de {meta.last_page || 1}
-        </span>
-        <Button
-          variant="outline"
-          disabled={page >= (meta.last_page || 1)}
-          onClick={() => {
-            setPage((p) => p + 1)
-            loadBooks()
-          }}
-        >
-          Siguiente
-        </Button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Edit/Create Modal */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          MODAL: Create/Edit Book
+      ═══════════════════════════════════════════════════════════════════ */}
       <Dialog
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
       >
-        <DialogContent>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingBook ? 'Editar Libro' : 'Nuevo Libro'}</DialogTitle>
           </DialogHeader>
@@ -234,19 +268,20 @@ export default function BookCatalog() {
               e.preventDefault()
               handleSave(new FormData(e.currentTarget))
             }}
-            className="space-y-4"
+            className="space-y-4 mt-4"
           >
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">ISBN *</label>
               <Input
                 name="isbn"
                 defaultValue={editingBook?.isbn}
                 required
-                disabled={!!editingBook} // Cannot change ISBN when editing
-                placeholder="13 dígitos (ej: 9781234567890)"
+                disabled={!!editingBook}
+                placeholder="9781234567890"
+                className="font-mono"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Título *</label>
               <Input
                 name="titulo"
@@ -254,23 +289,22 @@ export default function BookCatalog() {
                 required
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Autores</label>
               <Input
                 name="autores"
                 defaultValue={editingBook?.autores || ''}
-                placeholder="Separados por comas"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Descripción</label>
               <textarea
                 name="descripcion"
                 defaultValue={editingBook?.descripcion}
-                className="w-full min-h-[100px] p-2 rounded-md border text-sm"
+                className="w-full min-h-[80px] p-3 rounded-xl border border-stone-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">URL Portada</label>
               <Input
                 name="thumbnail"
@@ -278,15 +312,21 @@ export default function BookCatalog() {
                 placeholder="https://..."
               />
             </div>
-            <div className="pt-4 flex justify-end gap-2">
+            <div className="flex gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsModalOpen(false)}
+                className="flex-1"
               >
                 Cancelar
               </Button>
-              <Button type="submit">Guardar</Button>
+              <Button
+                type="submit"
+                className="flex-1"
+              >
+                Guardar
+              </Button>
             </div>
           </form>
         </DialogContent>

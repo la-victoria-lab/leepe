@@ -1,196 +1,227 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
+import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 export default function RegisterBooksTab() {
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{
-    registered?: Array<{ isbn: string; titulo: string }>;
-    duplicates?: Array<{ isbn: string; titulo?: string }>;
-    notFound?: Array<{ imageName: string }>;
-    googleErrors?: Array<{ isbn: string }>;
-    errors?: Array<{ imageName: string }>;
-  } | null>(null);
-  const [error, setError] = useState<string>('');
+    registered?: Array<{ isbn: string; titulo: string }>
+    duplicates?: Array<{ isbn: string; titulo?: string }>
+    notFound?: Array<{ imageName: string }>
+    googleErrors?: Array<{ isbn: string }>
+    errors?: Array<{ imageName: string }>
+  } | null>(null)
+  const [error, setError] = useState<string>('')
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setSelectedImages(files);
-    setError('');
-    setResult(null);
-  };
+    const files = Array.from(e.target.files || [])
+    setSelectedImages(files)
+    setError('')
+    setResult(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     if (!selectedImages.length) {
-      setError('Por favor selecciona al menos una imagen');
-      return;
+      setError('Por favor selecciona al menos una imagen')
+      return
     }
 
-    setLoading(true);
-    setError('');
-    setResult(null);
+    setLoading(true)
+    setError('')
+    setResult(null)
 
     try {
-      const formData = new FormData();
+      const formData = new FormData()
       selectedImages.forEach((image) => {
-        formData.append('images', image);
-      });
+        formData.append('images', image)
+      })
 
       const response = await fetch('/api/register-books', {
         method: 'POST',
         body: formData,
-      });
+      })
 
       if (!response.ok) {
-        let errorMessage = 'Error al registrar libros';
+        let errorMessage = 'Error al registrar libros'
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
         } catch {
-          // si la respuesta no es JSON, usar el status text
-          errorMessage = response.statusText || `Error ${response.status}`;
+          errorMessage = response.statusText || `Error ${response.status}`
         }
-        throw new Error(errorMessage);
+        throw new Error(errorMessage)
       }
 
-      const data = await response.json();
-      setResult(data);
-      setSelectedImages([]);
+      const data = await response.json()
+      setResult(data)
+      setSelectedImages([])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido');
+      setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold mb-6 text-center">Registrar Libros</h2>
+    <div className="flex flex-col gap-8 pb-20 max-w-2xl mx-auto">
+      {/* Upload Zone */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-6"
+      >
+        <label
+          className={cn(
+            'relative flex flex-col items-center justify-center w-full h-64 rounded-[2.5rem] border-2 border-dashed transition-all cursor-pointer overflow-hidden group',
+            selectedImages.length > 0
+              ? 'border-violet-400 bg-violet-50'
+              : 'border-stone-200 bg-stone-50 hover:bg-stone-100 hover:border-violet-300'
+          )}
+        >
+          <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10 text-center px-4">
+            <div className="bg-white p-4 rounded-full shadow-sm mb-4 group-hover:scale-110 transition-transform">
+              <UploadCloud
+                size={32}
+                className={selectedImages.length > 0 ? 'text-violet-600' : 'text-stone-400'}
+              />
+            </div>
 
-      <form onSubmit={handleSubmit} className="mb-8">
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            {selectedImages.length > 0 ? (
+              <>
+                <p className="mb-1 text-lg font-bold text-violet-900">{selectedImages.length} imágenes listas</p>
+                <p className="text-sm text-violet-600 font-medium">Toca para cambiar</p>
+              </>
+            ) : (
+              <>
+                <p className="mb-1 text-lg font-bold text-slate-700">Sube fotos de los códigos de barra</p>
+                <p className="text-sm text-slate-400 font-medium max-w-xs">
+                  Puedes seleccionar varias fotos a la vez para carga masiva
+                </p>
+              </>
+            )}
+          </div>
           <input
             type="file"
             accept="image/*"
             multiple
             onChange={handleImageChange}
             className="hidden"
-            id="image-upload"
           />
-          <label
-            htmlFor="image-upload"
-            className="cursor-pointer inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
-          >
-            Seleccionar Imágenes
-          </label>
+        </label>
 
-          {selectedImages.length > 0 && (
-            <div className="mt-4">
-              <p className="text-gray-600">
-                {selectedImages.length} imagen(es) seleccionada(s)
-              </p>
-            </div>
-          )}
-        </div>
-
-        <button
+        <Button
           type="submit"
           disabled={!selectedImages.length || loading}
-          className="mt-4 w-full px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="h-14 rounded-2xl text-lg font-bold shadow-xl shadow-slate-900/10 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all bg-slate-900 text-white hover:bg-black"
         >
-          {loading ? 'Procesando...' : 'Registrar Libros'}
-        </button>
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Procesando Inteligencia...
+            </>
+          ) : (
+            'Iniciar Carga Masiva'
+          )}
+        </Button>
       </form>
 
+      {/* Error Message */}
       {error && (
-        <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg mb-4">
-          {error}
+        <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl flex items-center gap-3 animate-in shake">
+          <XCircle className="shrink-0" />
+          <p className="font-medium">{error}</p>
         </div>
       )}
 
+      {/* Results Section */}
       {result && (
-        <div className="space-y-4">
-          <h3 className="text-2xl font-bold mb-4">Resultado del Procesamiento</h3>
+        <div className="flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-500">
+          <h3 className="text-2xl font-black text-slate-800 tracking-tight px-2">Resultados</h3>
 
+          {/* Success */}
           {result.registered && result.registered.length > 0 && (
-            <div className="border rounded-lg p-4 bg-green-50 border-green-200">
-              <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-2">
-                ✓ Libros registrados exitosamente ({result.registered.length})
-              </h4>
-              <ul className="space-y-1">
+            <div className="bg-green-50 rounded-[2rem] p-6 border border-green-100">
+              <div className="flex items-center gap-3 mb-4 text-green-700">
+                <CheckCircle2 className="h-6 w-6" />
+                <h4 className="font-bold text-lg">Registrados ({result.registered.length})</h4>
+              </div>
+              <ul className="space-y-2">
                 {result.registered.map((book) => (
-                  <li key={book.isbn} className="text-gray-700 text-sm">
-                    • {book.titulo} <span className="text-gray-500">(ISBN: {book.isbn})</span>
+                  <li
+                    key={book.isbn}
+                    className="bg-white/60 p-3 rounded-xl text-sm font-medium text-green-900 flex justify-between items-center"
+                  >
+                    <span>{book.titulo}</span>
+                    <span className="text-green-600/70 text-xs font-mono">{book.isbn}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
+          {/* Duplicates */}
           {result.duplicates && result.duplicates.length > 0 && (
-            <div className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
-              <h4 className="font-semibold text-yellow-700 mb-2 flex items-center gap-2">
-                ⚠ Ya estaban registrados ({result.duplicates.length})
-              </h4>
-              <ul className="space-y-1">
-                {result.duplicates.map((book) => (
-                  <li key={book.isbn} className="text-gray-700 text-sm">
-                    • {book.titulo || `ISBN: ${book.isbn}`}
+            <div className="bg-yellow-50 rounded-[2rem] p-6 border border-yellow-100">
+              <div className="flex items-center gap-3 mb-4 text-yellow-700">
+                <AlertTriangle className="h-6 w-6" />
+                <h4 className="font-bold text-lg">Duplicados ({result.duplicates.length})</h4>
+              </div>
+              <ul className="space-y-2">
+                {result.duplicates.map((book, idx) => (
+                  <li
+                    key={idx}
+                    className="bg-white/60 p-3 rounded-xl text-sm font-medium text-yellow-900 flex justify-between items-center"
+                  >
+                    <span>{book.titulo || 'Libro desconocido'}</span>
+                    <span className="text-yellow-700/70 text-xs font-mono">{book.isbn}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {result.notFound && result.notFound.length > 0 && (
-            <div className="border rounded-lg p-4 bg-orange-50 border-orange-200">
-              <h4 className="font-semibold text-orange-700 mb-2 flex items-center gap-2">
-                ⊘ No se encontró ISBN en estas imágenes ({result.notFound.length})
-              </h4>
-              <ul className="space-y-1">
-                {result.notFound.map((item, idx: number) => (
-                  <li key={idx} className="text-gray-700 text-sm">
-                    • {item.imageName}
-                  </li>
+          {/* Errors Grid */}
+          {result.notFound?.length || result.errors?.length ? (
+            <div className="bg-red-50 rounded-[2rem] p-6 border border-red-100">
+              <div className="flex items-center gap-3 mb-4 text-red-700">
+                <XCircle className="h-6 w-6" />
+                <h4 className="font-bold text-lg">Fallidos</h4>
+              </div>
+              <div className="flex flex-col gap-2">
+                {result.notFound?.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white/60 p-3 rounded-xl flex items-center gap-2 text-red-900 text-sm"
+                  >
+                    <FileImage
+                      size={14}
+                      className="opacity-50"
+                    />
+                    <span className="font-medium">Sin ISBN: {item.imageName}</span>
+                  </div>
                 ))}
-              </ul>
-            </div>
-          )}
-
-          {result.googleErrors && result.googleErrors.length > 0 && (
-            <div className="border rounded-lg p-4 bg-red-50 border-red-200">
-              <h4 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
-                ✗ No encontrados en Google Books ({result.googleErrors.length})
-              </h4>
-              <ul className="space-y-1">
-                {result.googleErrors.map((item) => (
-                  <li key={item.isbn} className="text-gray-700 text-sm">
-                    • ISBN: {item.isbn}
-                  </li>
+                {result.errors?.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white/60 p-3 rounded-xl flex items-center gap-2 text-red-900 text-sm"
+                  >
+                    <AlertTriangle
+                      size={14}
+                      className="opacity-50"
+                    />
+                    <span className="font-medium">Error: {item.imageName}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
-          )}
-
-          {result.errors && result.errors.length > 0 && (
-            <div className="border rounded-lg p-4 bg-red-50 border-red-200">
-              <h4 className="font-semibold text-red-700 mb-2 flex items-center gap-2">
-                ✗ Errores al procesar ({result.errors.length})
-              </h4>
-              <ul className="space-y-1">
-                {result.errors.map((item, idx: number) => (
-                  <li key={idx} className="text-gray-700 text-sm">
-                    • {item.imageName}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>
-  );
+  )
 }

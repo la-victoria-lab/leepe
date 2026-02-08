@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { RefreshCw, CheckCircle2, Clock, BookOpen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type Prestamo = {
   id: number
@@ -48,64 +50,89 @@ export default function LoansHistory() {
   }, [])
 
   return (
-    <div className='border rounded-xl p-4 bg-white shadow'>
-      <div className='flex items-center justify-between gap-4 mb-3'>
-        <h2 className='text-lg font-bold'>Historial de préstamos</h2>
-        <button
-          type='button'
+    <div className="flex flex-col h-full pt-4 md:pt-0">
+      {/* Action Bar (Aligned with other views) */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-black text-slate-800 tracking-tight hidden md:block">Historial de Préstamos</h2>
+        <Button
           onClick={load}
+          variant="outline"
           disabled={isLoading}
-          className='px-3 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:bg-gray-200 disabled:text-gray-500 text-sm'
+          size="icon"
+          className="rounded-full h-10 w-10 ml-auto"
         >
-          Recargar
-        </button>
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
       {error && (
-        <div className='mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm'>
+        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-sm font-medium flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-red-500 block" />
           {error}
         </div>
       )}
 
       {isLoading && !prestamos.length ? (
-        <p className='text-gray-600 text-sm'>Cargando...</p>
+        <div className="flex-1 flex items-center justify-center p-10">
+          <div className="flex flex-col items-center gap-3 text-slate-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500" />
+            <p className="font-medium text-sm">Cargando historial...</p>
+          </div>
+        </div>
       ) : !prestamos.length ? (
-        <p className='text-gray-600 text-sm'>Sin préstamos registrados</p>
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-60">
+          <div className="bg-slate-100 p-6 rounded-full mb-4">
+            <Clock
+              size={40}
+              className="text-slate-300"
+            />
+          </div>
+          <p className="text-slate-400 font-medium">No hay historial de préstamos.</p>
+        </div>
       ) : (
-        <div className='space-y-3 max-h-[60vh] overflow-y-auto'>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
           {prestamos.map((prestamo) => (
             <div
               key={prestamo.id}
-              className='border rounded-lg p-3 bg-gray-50 flex gap-3'
+              className="group bg-white rounded-[1.5rem] p-4 shadow-sm hover:shadow-md transition-all border border-stone-100 flex gap-4"
             >
-              {prestamo.libros.thumbnail && (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={prestamo.libros.thumbnail}
-                  alt={prestamo.libros.titulo}
-                  className='w-16 h-24 object-cover rounded-lg ring-1 ring-black/10 shrink-0'
+              {/* Cover */}
+              <div className="w-16 aspect-[2/3] rounded-xl overflow-hidden shadow-sm bg-stone-100 shrink-0 relative group-hover:scale-105 transition-transform">
+                {prestamo.libros.thumbnail ? (
+                  <img
+                    src={prestamo.libros.thumbnail}
+                    alt={prestamo.libros.titulo}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-stone-300">
+                    <BookOpen size={20} />
+                  </div>
+                )}
+                {/* Status Badge Over Cover */}
+                <div
+                  className={`absolute bottom-0 left-0 right-0 h-1 ${prestamo.devuelto ? 'bg-green-500' : 'bg-orange-500'}`}
                 />
-              )}
-              <div className='flex-1 min-w-0'>
-                <p className='font-medium text-gray-900 truncate'>{prestamo.libros.titulo}</p>
-                {prestamo.libros.autores && (
-                  <p className='text-sm text-gray-600 truncate'>{prestamo.libros.autores}</p>
-                )}
-                <p className='text-sm text-gray-700 mt-1'>
-                  <span className={prestamo.devuelto ? 'text-green-600' : 'text-orange-600'}>
-                    {prestamo.devuelto ? '✓ Devuelto' : '● Prestado'}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <h4 className="font-bold text-slate-900 leading-tight mb-1 line-clamp-2">{prestamo.libros.titulo}</h4>
+                <p className="text-xs font-semibold text-slate-500 mb-2 truncate">{prestamo.persona}</p>
+
+                <div className="flex items-center gap-2 mt-auto">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                      prestamo.devuelto ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
+                    }`}
+                  >
+                    {prestamo.devuelto ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                    {prestamo.devuelto ? 'Devuelto' : 'Prestado'}
                   </span>
-                  {' - '}
-                  {prestamo.persona}
-                </p>
-                <p className='text-xs text-gray-500 mt-1'>
-                  Prestado: {new Date(prestamo.fecha_prestamo).toLocaleString('es')}
-                </p>
-                {prestamo.fecha_devolucion && (
-                  <p className='text-xs text-gray-500'>
-                    Devuelto: {new Date(prestamo.fecha_devolucion).toLocaleString('es')}
-                  </p>
-                )}
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(prestamo.fecha_prestamo).toLocaleDateString('es', { day: '2-digit', month: '2-digit' })}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -114,4 +141,3 @@ export default function LoansHistory() {
     </div>
   )
 }
-

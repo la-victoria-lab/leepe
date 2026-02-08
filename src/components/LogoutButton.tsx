@@ -2,8 +2,15 @@
 
 import { useState } from 'react'
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
+import { LogOut } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-export default function LogoutButton() {
+interface LogoutButtonProps {
+  className?: string
+  iconOnly?: boolean
+}
+
+export default function LogoutButton({ className, iconOnly = false }: LogoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const logout = async () => {
@@ -19,14 +26,19 @@ export default function LogoutButton() {
 
   return (
     <button
-      type='button'
+      type="button"
       onClick={logout}
       disabled={isLoading}
-      className='text-xs font-medium text-gray-500 hover:text-red-600 active:text-red-700 disabled:text-gray-300 transition-colors touch-manipulation'
+      className={cn(
+        'flex items-center justify-center transition-all duration-200 disabled:opacity-50',
+        iconOnly
+          ? 'h-9 w-9 rounded-full bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500'
+          : 'text-xs font-semibold text-slate-500 hover:text-red-500 bg-transparent px-3 py-1 rounded-full hover:bg-red-50',
+        className
+      )}
+      title="Cerrar sesión"
     >
-      {isLoading ? 'Saliendo...' : 'Cerrar sesión'}
+      {iconOnly ? <LogOut className={cn('w-4 h-4', isLoading && 'animate-pulse')} /> : isLoading ? '...' : 'Salir'}
     </button>
   )
 }
-
-
