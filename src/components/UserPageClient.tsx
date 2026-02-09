@@ -103,7 +103,7 @@ export default function UserPageClient({ userName, embedded = false }: UserPageC
             <LendBookTab onSuccess={() => setViewMode('welcome')} />
           </div>
         ) : (
-          <div className="flex-1 h-full w-full overflow-y-auto px-4 pb-6">
+          <div className="flex-1 h-full w-full overflow-y-auto px-4 pb-6 no-scrollbar">
             {' '}
             {/* Padding interno solo para WelcomeScreen */}
             <WelcomeScreen

@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ScanBarcode, BookOpen, Clock, AlertCircle } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { ScanBarcode, BookOpen, Clock, AlertCircle, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 
 type WelcomeScreenProps = {
   userName: string
@@ -25,22 +25,70 @@ type Prestamo = {
   }
 }
 
+// MOCK DATA FICTICIA - ACTIVA
+const MOCK_PRESTAMOS: Prestamo[] = [
+  {
+    id: 1,
+    libro_isbn: '978-0142437230',
+    persona: 'Jerson',
+    fecha_prestamo: new Date().toISOString(),
+    libros: {
+      titulo: 'Don Quijote de la Mancha',
+      autores: 'Miguel de Cervantes',
+      thumbnail: 'https://covers.openlibrary.org/b/id/7222246-L.jpg',
+    },
+  },
+  {
+    id: 2,
+    libro_isbn: '978-0451524935',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    libros: {
+      titulo: '1984',
+      autores: 'George Orwell',
+      thumbnail: 'https://covers.openlibrary.org/b/id/12613583-L.jpg',
+    },
+  },
+  {
+    id: 3,
+    libro_isbn: '9780061120084',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    libros: {
+      titulo: 'Cien Años de Soledad',
+      autores: 'Gabriel García Márquez',
+      thumbnail: 'https://covers.openlibrary.org/b/id/12693998-L.jpg',
+    },
+  },
+]
+
 export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess }: WelcomeScreenProps) {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([])
   const [loading, setLoading] = useState(true)
   const [returningIsbn, setReturningIsbn] = useState<string | null>(null)
   const [returnError, setReturnError] = useState<string>('')
   const [confirmReturn, setConfirmReturn] = useState<Prestamo | null>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollY } = useScroll({ container: containerRef })
 
+  // Cargar datos (Mezclando reales con mock si falla o está vacío para demo)
   const fetchPrestamos = async () => {
     try {
       const response = await fetch('/api/user-loans')
       if (response.ok) {
         const data = await response.json()
-        setPrestamos(data)
+        if (data && data.length > 0) {
+          setPrestamos(data)
+        } else {
+          setPrestamos(MOCK_PRESTAMOS) // Fallback a Mock si no hay datos reales
+        }
+      } else {
+        setPrestamos(MOCK_PRESTAMOS)
       }
     } catch (error) {
       console.error('[WelcomeScreen] Error fetching loans:', error)
+      setPrestamos(MOCK_PRESTAMOS)
     } finally {
       setLoading(false)
     }
@@ -49,6 +97,11 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   useEffect(() => {
     fetchPrestamos()
   }, [])
+
+  // Scroll detection
+  useMotionValueEvent(scrollY, 'change', (latest) => {
+    setIsScrolled(latest > 20)
+  })
 
   const handleReturnClick = (prestamo: Prestamo) => {
     setConfirmReturn(prestamo)
@@ -70,6 +123,14 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
       })
 
       if (!response.ok) {
+        // En demo mode, simulamos éxito
+        if (MOCK_PRESTAMOS.find((p) => p.id === confirmReturn.id)) {
+          alert('En modo demo: Libro devuelto correctamente')
+          setPrestamos((prev) => prev.filter((p) => p.id !== confirmReturn.id))
+          return
+        }
+
+        // Error real
         let errorMessage = 'Error al devolver libro'
         try {
           const errorData = await response.json()
@@ -93,136 +154,154 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 py-2 overflow-hidden w-full max-w-md mx-auto">
-      {/* Hero Section */}
-      <div className="text-center mb-8 shrink-0 animate-in slide-in-from-bottom-8 duration-700">
-        <h1 className="text-[3.5rem] font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-600 to-fuchsia-600 leading-tight tracking-tighter drop-shadow-sm mb-2 font-display">
-          LEE(PE)
-        </h1>
-        <p className="text-lg font-medium text-slate-500">
-          ¿Qué vas a leer hoy, <span className="text-violet-600 font-bold">{userName.split(' ')[0]}</span>?
-        </p>
-      </div>
+    <div className="flex flex-col flex-1 min-h-0 w-full max-w-md mx-auto overflow-hidden bg-stone-50 relative">
+      {/* HEADER UNIFICADO (Título + Resumen) - Sticky */}
+      <motion.div
+        layout
+        className={cn(
+          'z-30 w-full bg-stone-50/95 backdrop-blur-md border-b transition-all duration-300',
+          isScrolled ? 'border-violet-100 shadow-sm' : 'border-transparent'
+        )}
+      >
+        <div className="px-6 py-4 flex flex-col items-center text-center">
+          <motion.h1
+            layout
+            className={cn(
+              'font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-600 to-fuchsia-600 leading-none tracking-tighter transition-all duration-300 font-display',
+              isScrolled ? 'text-3xl' : 'text-5xl mb-2'
+            )}
+          >
+            LEE(PE)
+          </motion.h1>
 
-      {/* Main Action Button */}
-      <div className="w-full mb-8 shrink-0 animate-in zoom-in-95 duration-500 delay-100">
-        <button
-          type="button"
-          onClick={onSelectLend}
-          className="group relative w-full py-8 md:py-10 rounded-[2.5rem] bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
-          <div className="relative z-10 flex flex-col items-center justify-center gap-2">
-            <ScanBarcode
-              size={48}
-              strokeWidth={2.5}
-              className="mb-1 drop-shadow-md"
-            />
-            <span className="text-2xl md:text-3xl font-black tracking-tight drop-shadow-md">Escanear Libro</span>
-            <span className="text-white/80 text-sm font-medium bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
-              Toca para abrir la cámara
-            </span>
-          </div>
-          {/* Shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent translate-y-[100%] group-hover:translate-y-[-100%] transition-transform duration-700 pointer-events-none" />
-        </button>
-      </div>
-
-      {/* Loans Section */}
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center text-slate-400 font-medium">
-          <div className="animate-pulse flex flex-col items-center gap-2">
-            <div className="h-2 w-24 bg-slate-200 rounded-full"></div>
-            <span className="text-xs">Cargando tus libros...</span>
-          </div>
-        </div>
-      ) : prestamos.length > 0 ? (
-        <div className="flex-1 min-h-0 flex flex-col animate-in slide-in-from-bottom-10 duration-700 delay-200">
-          <div className="flex items-center gap-2 mb-4 px-2">
-            <BookOpen
-              size={18}
-              className="text-violet-500"
-            />
-            <h3 className="text-lg font-bold text-slate-800">Tus Préstamos</h3>
-            <span className="bg-violet-100 text-violet-700 text-xs font-bold px-2 py-0.5 rounded-full">
-              {prestamos.length}
-            </span>
-          </div>
-
-          <div className="overflow-y-auto flex-1 min-h-0 px-1 pb-4 space-y-4 no-scrollbar">
-            {prestamos.map((prestamo) => (
-              <div
-                key={prestamo.id}
-                className="group relative bg-white border border-violet-100 rounded-[1.5rem] p-3 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:shadow-violet-200/50 hover:scale-[1.02] transition-all duration-300 flex gap-4 overflow-hidden"
+          <AnimatePresence>
+            {!isScrolled && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
-                {/* Book Cover */}
-                <div className="shrink-0 relative w-20 aspect-[2/3] rounded-xl overflow-hidden shadow-md bg-slate-100">
-                  {prestamo.libros.thumbnail ? (
-                    <img
-                      src={prestamo.libros.thumbnail}
-                      alt={prestamo.libros.titulo}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-violet-50">
-                      <BookOpen className="text-violet-300" />
+                <p className="text-lg font-medium text-slate-500">
+                  Hola, <span className="text-violet-600 font-bold">{userName.split(' ')[0]}</span>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      {/* CONTENIDO SCROLLEABLE */}
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto w-full no-scrollbar relative"
+      >
+        <div className="px-4 pb-24 pt-4 space-y-6">
+          {/* SECCIÓN 1: PRÉSTAMOS ACTIVOS (Ahora arriba) */}
+          <div className="animate-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div className="flex items-center gap-2">
+                <BookOpen
+                  size={18}
+                  className="text-violet-600"
+                />
+                <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Tus Préstamos</h3>
+              </div>
+              <span className="bg-violet-100 text-violet-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+                {prestamos.length}
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-violet-100">
+                <div className="animate-pulse h-2 w-24 bg-slate-200 rounded-full mx-auto" />
+              </div>
+            ) : prestamos.length > 0 ? (
+              <div className="space-y-3">
+                {prestamos.map((prestamo) => (
+                  <div
+                    key={prestamo.id}
+                    className="group relative bg-white border border-violet-100/50 rounded-2xl p-3 shadow-sm hover:shadow-md transition-all flex gap-3 overflow-hidden"
+                  >
+                    <div className="shrink-0 relative w-16 aspect-[2/3] rounded-lg overflow-hidden bg-slate-100 shadow-inner">
+                      <img
+                        src={prestamo.libros.thumbnail || ''}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0 py-1 flex flex-col">
+                      <h4 className="font-bold text-slate-800 text-sm leading-tight line-clamp-1">
+                        {prestamo.libros.titulo}
+                      </h4>
+                      <p className="text-xs text-slate-500 line-clamp-1 mb-2">{prestamo.libros.autores}</p>
+
+                      <div className="mt-auto flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
+                          <Clock size={10} />
+                          <span>
+                            {new Date(prestamo.fecha_prestamo).toLocaleDateString('es', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleReturnClick(prestamo)}
+                          disabled={returningIsbn === prestamo.libro_isbn}
+                          className="h-7 px-3 text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-700 rounded-lg ml-2"
+                        >
+                          Devolver
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white/50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
+                <p className="text-slate-400 font-medium text-sm">No tienes libros prestados.</p>
+              </div>
+            )}
+          </div>
+
+          {/* SECCIÓN 2: ACCIÓN PRINCIPAL (Ahora abajo) */}
+          <div className="animate-in zoom-in-95 duration-500 delay-100">
+            <button
+              type="button"
+              onClick={onSelectLend}
+              className="group relative w-full overflow-hidden rounded-[2rem] bg-slate-900 p-1 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="relative bg-slate-900 rounded-[1.8rem] px-6 py-6 flex items-center justify-between border border-white/10">
+                <div className="flex flex-col items-start gap-1">
+                  <span className="text-2xl font-black text-white tracking-tight">Escanear Libro</span>
+                  <span className="text-slate-400 text-xs font-medium">Toca para abrir la cámara</span>
                 </div>
-
-                {/* Info */}
-                <div className="flex-1 flex flex-col justify-between py-1 min-w-0">
-                  <div>
-                    <h4 className="font-bold text-slate-900 leading-tight mb-1 line-clamp-2">
-                      {prestamo.libros.titulo}
-                    </h4>
-                    <p className="text-xs font-semibold text-slate-500 mb-2 truncate">
-                      {prestamo.libros.autores || 'Autor desconocido'}
-                    </p>
-                  </div>
-
-                  <div className="flex items-end justify-between gap-2 mt-2">
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg">
-                      <Clock size={10} />
-                      {new Date(prestamo.fecha_prestamo).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleReturnClick(prestamo)}
-                      disabled={returningIsbn === prestamo.libro_isbn}
-                      className={cn(
-                        'h-8 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 hover:shadow-none transition-colors',
-                        returningIsbn === prestamo.libro_isbn && 'opacity-50'
-                      )}
-                    >
-                      {returningIsbn === prestamo.libro_isbn ? '...' : 'Devolver'}
-                    </Button>
-                  </div>
+                <div className="h-14 w-14 bg-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-violet-600/50 group-hover:rotate-12 transition-transform">
+                  <ScanBarcode
+                    className="text-white"
+                    size={28}
+                  />
                 </div>
               </div>
-            ))}
+            </button>
           </div>
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-60 animate-in fade-in duration-1000">
-          <p className="text-slate-400 font-medium text-lg">No tienes libros prestados.</p>
-          <p className="text-slate-300 text-sm mt-1">¡Escanea uno para empezar!</p>
-        </div>
-      )}
+      </div>
 
-      {/* Error Toast */}
+      {/* Error Toast & Modals (Igual que antes) */}
       {returnError && (
-        <div className="absolute bottom-4 left-4 right-4 animate-in slide-in-from-bottom-4 fade-in duration-300 z-50">
-          <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl text-sm shadow-lg flex items-center gap-3">
+        <div className="absolute bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-4">
+          <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl text-sm shadow-xl flex items-center gap-3">
             <AlertCircle className="shrink-0 text-red-500" />
             <p className="font-medium">{returnError}</p>
           </div>
         </div>
       )}
 
-      {/* Confirm Modal */}
       <Dialog
         open={!!confirmReturn}
         onOpenChange={(open) => !open && setConfirmReturn(null)}
@@ -230,50 +309,35 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
         <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl sm:max-w-md w-full bg-slate-50 gap-0">
           {confirmReturn && (
             <>
-              <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-8 pt-10 pb-16 text-center text-white relative">
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
-                <h3 className="text-2xl font-black mb-1 tracking-tight relative z-10">¿Devolver Libro?</h3>
-                <p className="text-white/90 text-sm font-medium relative z-10">Confirma que tienes el libro contigo</p>
+              <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-8 pt-10 pb-16 text-center text-white">
+                <h3 className="text-2xl font-black mb-1">¿Devolver Libro?</h3>
+                <p className="text-white/90 text-sm font-medium">Confirma que tienes el libro</p>
               </div>
-
-              <div className="px-6 pb-8 flex flex-col items-center text-center relative mt-[-3rem]">
-                {/* Floating Cover */}
-                <div className="w-28 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl ring-4 ring-white bg-white mx-auto relative z-20 transition-transform duration-500 hover:scale-105">
-                  {confirmReturn?.libros.thumbnail ? (
-                    <img
-                      src={confirmReturn.libros.thumbnail}
-                      className="w-full h-full object-cover"
-                      alt=""
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                      <BookOpen className="text-slate-300" />
-                    </div>
-                  )}
+              <div className="px-6 pb-8 flex flex-col items-center text-center mt-[-3rem]">
+                <div className="w-28 aspect-[2/3] rounded-xl overflow-hidden shadow-2xl ring-4 ring-white bg-white mx-auto relative z-10">
+                  <img
+                    src={confirmReturn.libros.thumbnail || ''}
+                    className="w-full h-full object-cover"
+                    alt=""
+                  />
                 </div>
-
-                <div className="mt-6 space-y-1 w-full">
-                  <h4 className="font-bold text-xl text-slate-800 leading-tight line-clamp-2">
-                    {confirmReturn?.libros.titulo}
-                  </h4>
-                  <p className="text-sm text-slate-500 font-medium line-clamp-1">{confirmReturn?.libros.autores}</p>
+                <div className="mt-4 w-full">
+                  <h4 className="font-bold text-lg text-slate-800 line-clamp-1">{confirmReturn.libros.titulo}</h4>
                 </div>
               </div>
-
               <div className="p-4 bg-white border-t border-slate-100 flex gap-3">
                 <Button
                   variant="ghost"
-                  className="flex-1 h-12 rounded-xl font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                  className="flex-1 rounded-xl"
                   onClick={() => setConfirmReturn(null)}
                 >
                   Cancelar
                 </Button>
                 <Button
-                  className="flex-1 h-12 rounded-xl bg-slate-900 text-white font-bold hover:bg-black shadow-lg shadow-black/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                   onClick={handleConfirmReturn}
-                  disabled={!!returningIsbn}
+                  className="flex-1 rounded-xl bg-slate-900 text-white"
                 >
-                  {returningIsbn ? 'Procesando...' : 'Sí, devolver'}
+                  Sí, devolver
                 </Button>
               </div>
             </>

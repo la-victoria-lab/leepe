@@ -150,8 +150,8 @@ export default function AdminPageClient({ userName }: AdminPageClientProps) {
         </div>
 
         {/* Mobile Bottom Navigation - Floating Island */}
-        <div className="md:hidden fixed bottom-6 left-4 right-4 z-50">
-          <div className="bg-slate-900/90 backdrop-blur-xl rounded-[2rem] border border-white/10 shadow-2xl shadow-indigo-500/20 p-2 flex justify-between items-center h-[72px] relative overflow-hidden">
+        <div className="md:hidden fixed bottom-3 left-2 right-2 z-50">
+          <div className="bg-slate-900/90 backdrop-blur-xl rounded-[1.5rem] border border-white/10 shadow-2xl shadow-indigo-500/20 p-2 flex justify-between items-center h-[72px] relative overflow-hidden">
             {/* Glow effect */}
             <div className="absolute inset-0 bg-gradient-to-r from-violet-500/20 via-transparent to-pink-500/20 pointer-events-none" />
 
