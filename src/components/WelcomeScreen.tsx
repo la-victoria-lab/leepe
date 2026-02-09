@@ -42,7 +42,7 @@ const MOCK_PRESTAMOS: Prestamo[] = [
     id: 2,
     libro_isbn: '978-0451524935',
     persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    fecha_prestamo: new Date(Date.now() - 2 * 86400000).toISOString(),
     libros: {
       titulo: '1984',
       autores: 'George Orwell',
@@ -53,11 +53,88 @@ const MOCK_PRESTAMOS: Prestamo[] = [
     id: 3,
     libro_isbn: '9780061120084',
     persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    fecha_prestamo: new Date(Date.now() - 5 * 86400000).toISOString(),
     libros: {
       titulo: 'Cien Años de Soledad',
       autores: 'Gabriel García Márquez',
       thumbnail: 'https://covers.openlibrary.org/b/id/12693998-L.jpg',
+    },
+  },
+  {
+    id: 4,
+    libro_isbn: '978-0345339706',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 8 * 86400000).toISOString(),
+    libros: {
+      titulo: 'El Señor de los Anillos',
+      autores: 'J.R.R. Tolkien',
+      thumbnail: 'https://covers.openlibrary.org/b/id/8353664-L.jpg',
+    },
+  },
+  {
+    id: 5,
+    libro_isbn: '978-0747532743',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 10 * 86400000).toISOString(),
+    libros: {
+      titulo: 'Harry Potter y la Piedra Filosofal',
+      autores: 'J.K. Rowling',
+      thumbnail: 'https://covers.openlibrary.org/b/id/10522851-L.jpg',
+    },
+  },
+  {
+    id: 6,
+    libro_isbn: '978-0140449136',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 12 * 86400000).toISOString(),
+    libros: {
+      titulo: 'Crimen y Castigo',
+      autores: 'Fiódor Dostoyevski',
+      thumbnail: 'https://covers.openlibrary.org/b/id/7222168-L.jpg',
+    },
+  },
+  {
+    id: 7,
+    libro_isbn: '978-0307474728',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 15 * 86400000).toISOString(),
+    libros: {
+      titulo: 'Crónica de una muerte anunciada',
+      autores: 'Gabriel García Márquez',
+      thumbnail: 'https://covers.openlibrary.org/b/id/13280037-L.jpg',
+    },
+  },
+  {
+    id: 8,
+    libro_isbn: '978-0141439518',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 20 * 86400000).toISOString(),
+    libros: {
+      titulo: 'Orgullo y Prejuicio',
+      autores: 'Jane Austen',
+      thumbnail: 'https://covers.openlibrary.org/b/id/8259449-L.jpg',
+    },
+  },
+  {
+    id: 9,
+    libro_isbn: '978-0679783268',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 25 * 86400000).toISOString(),
+    libros: {
+      titulo: 'El Gran Gatsby',
+      autores: 'F. Scott Fitzgerald',
+      thumbnail: 'https://covers.openlibrary.org/b/id/8446927-L.jpg',
+    },
+  },
+  {
+    id: 10,
+    libro_isbn: '978-0307277671',
+    persona: 'Jerson',
+    fecha_prestamo: new Date(Date.now() - 30 * 86400000).toISOString(),
+    libros: {
+      titulo: 'Rayuela',
+      autores: 'Julio Cortázar',
+      thumbnail: 'https://covers.openlibrary.org/b/id/10609658-L.jpg',
     },
   },
 ]
@@ -196,8 +273,31 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
         ref={containerRef}
         className="flex-1 overflow-y-auto w-full no-scrollbar relative"
       >
-        <div className="px-4 pb-24 pt-4 space-y-6">
-          {/* SECCIÓN 1: PRÉSTAMOS ACTIVOS (Ahora arriba) */}
+        <div className="px-4 pb-6 pt-4 space-y-6">
+          {/* SECCIÓN 1: ACCIÓN PRINCIPAL (Ahora arriba, antes de los préstamos) */}
+          <div className="animate-in zoom-in-95 duration-500 delay-100">
+            <button
+              type="button"
+              onClick={onSelectLend}
+              className="group relative w-full overflow-hidden rounded-[2rem] bg-slate-900 p-1 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 opacity-20 group-hover:opacity-30 transition-opacity" />
+              <div className="relative bg-slate-900 rounded-[1.8rem] px-6 py-6 flex items-center justify-between border border-white/10">
+                <div className="flex flex-col items-start gap-1">
+                  <span className="text-2xl font-black text-white tracking-tight">Escanear Libro</span>
+                  <span className="text-slate-400 text-xs font-medium">Toca para abrir la cámara</span>
+                </div>
+                <div className="h-14 w-14 bg-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-violet-600/50 group-hover:rotate-12 transition-transform">
+                  <ScanBarcode
+                    className="text-white"
+                    size={28}
+                  />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* SECCIÓN 2: PRÉSTAMOS ACTIVOS (Ahora abajo) */}
           <div className="animate-in slide-in-from-bottom-4 duration-700">
             <div className="flex items-center justify-between mb-3 px-1">
               <div className="flex items-center gap-2">
@@ -265,29 +365,6 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
                 <p className="text-slate-400 font-medium text-sm">No tienes libros prestados.</p>
               </div>
             )}
-          </div>
-
-          {/* SECCIÓN 2: ACCIÓN PRINCIPAL (Ahora abajo) */}
-          <div className="animate-in zoom-in-95 duration-500 delay-100">
-            <button
-              type="button"
-              onClick={onSelectLend}
-              className="group relative w-full overflow-hidden rounded-[2rem] bg-slate-900 p-1 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 opacity-20 group-hover:opacity-30 transition-opacity" />
-              <div className="relative bg-slate-900 rounded-[1.8rem] px-6 py-6 flex items-center justify-between border border-white/10">
-                <div className="flex flex-col items-start gap-1">
-                  <span className="text-2xl font-black text-white tracking-tight">Escanear Libro</span>
-                  <span className="text-slate-400 text-xs font-medium">Toca para abrir la cámara</span>
-                </div>
-                <div className="h-14 w-14 bg-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-violet-600/50 group-hover:rotate-12 transition-transform">
-                  <ScanBarcode
-                    className="text-white"
-                    size={28}
-                  />
-                </div>
-              </div>
-            </button>
           </div>
         </div>
       </div>
