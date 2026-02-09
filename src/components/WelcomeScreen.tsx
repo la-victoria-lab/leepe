@@ -240,7 +240,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
           isScrolled ? 'border-violet-100 shadow-sm' : 'border-transparent'
         )}
       >
-        <div className="px-6 py-4 flex flex-col items-center text-center">
+        <div className="px-6 pt-12 pb-4 flex flex-col items-center text-center">
           <motion.h1
             layout
             className={cn(
@@ -383,7 +383,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
         open={!!confirmReturn}
         onOpenChange={(open) => !open && setConfirmReturn(null)}
       >
-        <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl sm:max-w-md w-full bg-slate-50 gap-0">
+        <DialogContent className="rounded-[2rem] p-0 overflow-hidden border-0 shadow-2xl max-w-md w-[calc(100%-2rem)] bg-slate-50 gap-0">
           {confirmReturn && (
             <>
               <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 p-8 pt-10 pb-16 text-center text-white">
