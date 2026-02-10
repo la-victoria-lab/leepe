@@ -1,9 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
+import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
 export async function GET(request: Request) {
+  const supabase = createSupabaseAdminClient()
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const page = parseInt(searchParams.get('page') || '1')
@@ -39,6 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const supabase = createSupabaseAdminClient()
   try {
     const body = await request.json()
     const { isbn, titulo, autores, descripcion, thumbnail, image_path } = body
@@ -76,6 +76,7 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const supabase = createSupabaseAdminClient()
   try {
     const body = await request.json()
     const { isbn, ...updates } = body // ISBN es la clave primaria
@@ -95,6 +96,7 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const supabase = createSupabaseAdminClient()
   const { searchParams } = new URL(request.url)
   const isbn = searchParams.get('isbn')
 
