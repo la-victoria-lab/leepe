@@ -164,7 +164,7 @@ async function processImage(imagePath: string): Promise<{
       // 2. Si falla local, usar OpenAI
       console.log(`      🤖 Local falló. Usando OpenAI para: ${imagePath.split('/').pop()}`)
       const imageBuffer = await readFile(imagePath)
-      const imageFile = new File([imageBuffer], imagePath.split('/').pop() || 'image.jpg', {
+      const imageFile = new File([imageBuffer as any], imagePath.split('/').pop() || 'image.jpg', {
         type: 'image/jpeg',
       })
 

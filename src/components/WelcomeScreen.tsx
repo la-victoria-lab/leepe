@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { ScanBarcode, BookOpen, Clock, AlertCircle, ChevronRight } from 'lucide-react'
+import { ScanBarcode, BookOpen, Clock, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -187,7 +187,6 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
 
   const handleConfirmReturn = async () => {
     if (!confirmReturn || returningIsbn) return
-
     const isbn = confirmReturn.libro_isbn
     setReturningIsbn(isbn)
     setConfirmReturn(null)
@@ -207,7 +206,6 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
           return
         }
 
-        // Error real
         let errorMessage = 'Error al devolver libro'
         try {
           const errorData = await response.json()
@@ -232,50 +230,30 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
 
   return (
     <div className="flex flex-col flex-1 min-h-0 w-full max-w-md mx-auto overflow-hidden bg-stone-50 relative">
-      {/* HEADER UNIFICADO (Título + Resumen) - Sticky */}
-      <motion.div
-        layout
-        className={cn(
-          'z-30 w-full bg-stone-50/95 backdrop-blur-md border-b transition-all duration-300',
-          isScrolled ? 'border-violet-100 shadow-sm' : 'border-transparent'
-        )}
-      >
-        <div className="px-6 pt-12 pb-4 flex flex-col items-center text-center">
-          <motion.h1
-            layout
-            className={cn(
-              'font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-600 to-fuchsia-600 leading-none tracking-tighter transition-all duration-300 font-display',
-              isScrolled ? 'text-3xl' : 'text-5xl mb-2'
-            )}
-          >
-            LEE(PE)
-          </motion.h1>
-
-          <AnimatePresence>
-            {!isScrolled && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <p className="text-lg font-medium text-slate-500">
-                  Hola, <span className="text-violet-600 font-bold">{userName.split(' ')[0]}</span>
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-
-      {/* CONTENIDO SCROLLEABLE */}
+      {/* Scroll Container ÚNICO para todo */}
       <div
         ref={containerRef}
         className="flex-1 overflow-y-auto w-full no-scrollbar relative"
       >
-        <div className="px-4 pb-6 pt-4 space-y-6">
-          {/* SECCIÓN 1: ACCIÓN PRINCIPAL (Ahora arriba, antes de los préstamos) */}
-          <div className="animate-in zoom-in-95 duration-500 delay-100">
+        {/* BLOQUE ÚNICO: Header + Contenido */}
+        <div className="px-6 pt-12 pb-24 space-y-8 flex flex-col items-center">
+          {/* Header: Logo + Saludo */}
+          <div className="w-full text-center">
+            <motion.h1
+              layout
+              className="font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-600 to-fuchsia-600 text-5xl mb-2 leading-none tracking-tighter font-display"
+            >
+              LEE(PE)
+            </motion.h1>
+            <div className="overflow-hidden">
+              <p className="text-lg font-medium text-slate-500">
+                Hola, <span className="text-violet-600 font-bold">{userName.split(' ')[0]}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Acción Principal: Escanear */}
+          <div className="w-full animate-in zoom-in-95 duration-500 delay-100">
             <button
               type="button"
               onClick={onSelectLend}
@@ -297,9 +275,9 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
             </button>
           </div>
 
-          {/* SECCIÓN 2: PRÉSTAMOS ACTIVOS (Ahora abajo) */}
-          <div className="animate-in slide-in-from-bottom-4 duration-700">
-            <div className="flex items-center justify-between mb-3 px-1">
+          {/* Préstamos Activos */}
+          <div className="w-full animate-in slide-in-from-bottom-4 duration-700">
+            <div className="flex items-center justify-between mb-4 px-1">
               <div className="flex items-center gap-2">
                 <BookOpen
                   size={18}
@@ -369,7 +347,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
         </div>
       </div>
 
-      {/* Error Toast & Modals (Igual que antes) */}
+      {/* Error Toast & Modals */}
       {returnError && (
         <div className="absolute bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-4">
           <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl text-sm shadow-xl flex items-center gap-3">
@@ -379,6 +357,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
         </div>
       )}
 
+      {/* MODAL DEVOLUCIÓN */}
       <Dialog
         open={!!confirmReturn}
         onOpenChange={(open) => !open && setConfirmReturn(null)}

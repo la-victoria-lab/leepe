@@ -70,8 +70,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Error al crear libro' }, { status: 500 })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message || 'Error al crear libro' }, { status: 500 })
   }
 }
 
@@ -89,8 +89,8 @@ export async function PUT(request: Request) {
     if (error) throw error
 
     return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Error al actualizar libro' }, { status: 500 })
+  } catch (error) {
+    return NextResponse.json({ error: (error as Error).message || 'Error al actualizar libro' }, { status: 500 })
   }
 }
 
