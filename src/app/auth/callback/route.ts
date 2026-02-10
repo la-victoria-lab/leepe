@@ -8,15 +8,21 @@ export async function GET(request: Request) {
   const nextPath = url.searchParams.get('next') || '/'
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login', url.origin))
+    console.error('[auth] No code provided in callback')
+    return NextResponse.redirect(new URL('/login?error=no_code', url.origin))
   }
 
   const supabase = await createSupabaseServerClient()
-  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
-    console.error('[auth] exchange code error', error)
-    return NextResponse.redirect(new URL('/login', url.origin))
+    console.error('[auth] Exchange code error:', error.message, error)
+    return NextResponse.redirect(new URL(`/login?error=exchange_failed`, url.origin))
+  }
+
+  if (!sessionData?.session) {
+    console.error('[auth] No session returned after exchange')
+    return NextResponse.redirect(new URL('/login?error=no_session', url.origin))
   }
 
   const {
@@ -24,11 +30,17 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser()
 
   if (!user?.email || !isAllowedCompanyEmail(user.email)) {
+    console.error('[auth] Invalid email domain:', user?.email)
     await supabase.auth.signOut()
     return NextResponse.redirect(new URL('/login?error=domain', url.origin))
   }
 
-  return NextResponse.redirect(new URL(nextPath, url.origin))
+  console.log('[auth] Login successful for:', user.email)
+
+  // Create response with explicit redirect
+  const response = NextResponse.redirect(new URL(nextPath, url.origin))
+
+  return response
 }
 
 

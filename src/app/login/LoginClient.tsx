@@ -19,7 +19,13 @@ export default function LoginClient({ nextPath, errorCode }: LoginClientProps) {
         ? 'Faltan variables de entorno de supabase en el deployment'
         : errorCode === 'middleware'
           ? 'Error interno en middleware, revisa logs de vercel'
-          : ''
+          : errorCode === 'no_code'
+            ? 'No se recibió código de autenticación. Intenta nuevamente.'
+            : errorCode === 'exchange_failed'
+              ? 'Error al intercambiar código de autenticación. Verifica la configuración de Supabase.'
+              : errorCode === 'no_session'
+                ? 'No se pudo crear la sesión. Intenta nuevamente o verifica tu navegador.'
+                : ''
 
   const signInWithGoogle = async () => {
     setIsLoading(true)
