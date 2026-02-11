@@ -89,7 +89,15 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
         setIsFallingBackToOpenAI(false)
 
         try {
+          isbnLogger.info('Starting camera access...')
+
+          // Verificar que getUserMedia existe
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Tu navegador no soporta acceso a cámara')
+          }
+
           // Solicitar acceso a la cámara
+          isbnLogger.info('Requesting camera permission...')
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: { ideal: 'environment' },
@@ -98,6 +106,11 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             },
             audio: false,
           })
+
+          isbnLogger.info({
+            tracks: stream.getVideoTracks().length,
+            settings: stream.getVideoTracks()[0]?.getSettings()
+          }, 'Camera access granted')
 
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop())
@@ -109,12 +122,24 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           if (!video) return
 
           video.srcObject = stream
+
+          isbnLogger.info('Starting video playback...')
           await video.play()
+
+          isbnLogger.info({
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            readyState: video.readyState
+          }, 'Video is playing')
+
           setIsReady(true)
 
           // Inicializar ZXing reader
+          isbnLogger.info('Initializing ZXing reader...')
           const reader = new BrowserMultiFormatReader()
           readerRef.current = reader
+
+          isbnLogger.info('ZXing reader initialized')
 
           // Configurar formatos de código de barras para ISBNs
           const hints = new Map()
@@ -192,8 +217,27 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             }
           }, AUTO_FALLBACK_TIMEOUT)
         } catch (error) {
-          isbnLogger.error({ err: error }, 'Camera access error')
-          setError('No se pudo acceder a la cámara')
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+          const errorName = error instanceof Error ? error.name : 'Unknown'
+
+          isbnLogger.error({
+            err: error,
+            message: errorMessage,
+            name: errorName
+          }, 'Camera access error')
+
+          // Mensajes de error más específicos
+          if (errorName === 'NotAllowedError') {
+            setError('Permiso de cámara denegado. Por favor permite el acceso.')
+          } else if (errorName === 'NotFoundError') {
+            setError('No se encontró cámara en este dispositivo')
+          } else if (errorName === 'NotReadableError') {
+            setError('La cámara está siendo usada por otra aplicación')
+          } else if (errorMessage.includes('405')) {
+            setError('Error de conexión (405). Verifica que estés en HTTPS o localhost.')
+          } else {
+            setError(`Error al acceder a la cámara: ${errorMessage}`)
+          }
         }
       }
 
@@ -229,7 +273,7 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       .trim()
 
     const videoClasses = [
-      'w-full object-cover',
+      'w-full',
       videoClassName || 'h-[42dvh] max-h-[420px] min-h-64',
     ]
       .filter(Boolean)
@@ -245,6 +289,8 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
               className={videoClasses}
               playsInline
               muted
+              autoPlay
+              style={{ objectFit: 'cover' }}
             />
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute inset-0 grid place-items-center">
