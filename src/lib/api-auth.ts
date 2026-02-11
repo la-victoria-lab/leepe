@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { isAllowedCompanyEmail, isAdminEmail, adminEmails } from '@/lib/auth'
+import { authLogger } from '@/lib/logger'
 
 export async function requireCompanyUser() {
   const supabase = await createSupabaseServerClient()
@@ -26,8 +27,7 @@ export async function requireAdmin() {
 
   const userEmail = auth.user.email || ''
   if (!isAdminEmail(userEmail)) {
-    console.error('[requireAdmin] User is not admin:', userEmail)
-    console.error('[requireAdmin] Admin emails list:', adminEmails)
+    authLogger.warn({ userEmail, adminEmails }, 'User is not admin')
     return { ok: false as const, response: NextResponse.json({ error: 'Acceso denegado. Se requieren permisos de administrador.' }, { status: 403 }) }
   }
 

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { extractISBNFromImage } from '@/lib/isbn-extractor';
 import { requireCompanyUser } from '@/lib/api-auth';
+import { IsbnSchema, validateOrError } from '@/lib/validations';
+import { apiLogger } from '@/lib/logger';
 
 function getBorrowerLabel(email: string, fullName: string | undefined | null) {
   const normalizedEmail = email.trim().toLowerCase()
@@ -49,6 +51,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validar formato de ISBN
+    const validation = validateOrError(IsbnSchema, isbn)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
     // Find active loan for this book and person
     const { data: prestamo, error: prestamoError } = await auth.supabase
       .from('prestamos')
@@ -75,12 +86,14 @@ export async function POST(request: NextRequest) {
       .eq('id', prestamo.id);
 
     if (updateError) {
-      console.error('[return-book] Database error:', updateError);
+      apiLogger.error({ err: updateError, loanId: prestamo.id }, 'Database error updating loan');
       return NextResponse.json(
         { error: 'Error al registrar la devolución' },
         { status: 500 }
       );
     }
+
+    apiLogger.info({ isbn, borrower, loanId: prestamo.id }, 'Book returned successfully');
 
     // Get book info
     const { data: libro } = await auth.supabase
@@ -95,7 +108,7 @@ export async function POST(request: NextRequest) {
       libro,
     });
   } catch (error) {
-    console.error('[return-book] Error:', error);
+    apiLogger.error({ err: error }, 'Error returning book');
     return NextResponse.json(
       { error: 'Error al devolver el libro' },
       { status: 500 }

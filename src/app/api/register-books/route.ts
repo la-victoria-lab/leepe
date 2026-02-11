@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractISBNFromImage } from '@/lib/isbn-extractor';
 import { requireAdmin } from '@/lib/api-auth';
+import { IsbnSchema, validateOrError, GoogleBookSchema } from '@/lib/validations';
+import { apiLogger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +41,23 @@ export async function POST(request: NextRequest) {
     const validResults = results.filter((r) => r.isbn && r.isbn !== 'NOT_FOUND');
     const validIsbns = validResults.map((r) => r.isbn!);
 
+    // Validar formato de todos los ISBNs
+    const invalidIsbns = validIsbns.filter((isbn) => {
+      const validation = validateOrError(IsbnSchema, isbn)
+      return !validation.success
+    })
+
+    if (invalidIsbns.length > 0) {
+      return NextResponse.json({
+        message: 'Some ISBNs have invalid format',
+        invalidIsbns,
+        registered: [],
+        duplicates: [],
+        notFound: results.filter((r) => r.status === 'no_isbn'),
+        errors: results.filter((r) => r.status === 'error'),
+      });
+    }
+
     if (!validIsbns.length) {
       return NextResponse.json({
         message: 'No valid ISBNs found',
@@ -72,8 +91,8 @@ export async function POST(request: NextRequest) {
         }
 
         const book = data.items[0].volumeInfo;
-        
-        return {
+
+        const bookData = {
           isbn,
           titulo: book.title || 'N/A',
           autores: book.authors || null,
@@ -81,6 +100,21 @@ export async function POST(request: NextRequest) {
           thumbnail: book.imageLinks?.thumbnail || null,
           status: 'success',
         };
+
+        // Validar datos del libro antes de retornar
+        const validation = validateOrError(GoogleBookSchema, {
+          isbn: bookData.isbn,
+          titulo: bookData.titulo,
+          autores: bookData.autores,
+          descripcion: bookData.descripcion,
+          thumbnail: bookData.thumbnail,
+        })
+
+        if (!validation.success) {
+          return { isbn, status: 'invalid_data' };
+        }
+
+        return bookData;
       } catch {
         return { isbn, status: 'google_error' };
       }
@@ -97,12 +131,14 @@ export async function POST(request: NextRequest) {
       const { error: insertError } = await auth.supabase.from('libros').insert(booksToInsert);
 
       if (insertError) {
-        console.error('[register-books] Database error:', insertError);
+        apiLogger.error({ err: insertError, count: booksToInsert.length }, 'Database error inserting books');
         return NextResponse.json(
           { error: `Error al registrar libros: ${insertError.message || 'Error desconocido en la base de datos'}` },
           { status: 500 }
         );
       }
+
+      apiLogger.info({ count: booksToInsert.length }, 'Books registered successfully');
     }
 
     return NextResponse.json({
@@ -114,7 +150,7 @@ export async function POST(request: NextRequest) {
       googleErrors: failedGoogleBooks,
     });
   } catch (error) {
-    console.error('[register-books] Error:', error);
+    apiLogger.error({ err: error }, 'Error processing register books request');
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json(
       { error: `Error al procesar la solicitud: ${errorMessage}` },

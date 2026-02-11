@@ -95,11 +95,7 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
     }
   }
 
-  const handleCapture = () => {
-    setError('')
-    setResult(null)
-    scannerRef.current?.capture()
-  }
+  // Ya no necesitamos handleCapture manual - es automático
 
   const handleOk = () => {
     setResult(null)
@@ -235,23 +231,15 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
           </div>
 
           {/* Bottom Controls Area */}
-          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center justify-end pb-8 pointer-events-auto gap-4">
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center justify-end pb-8 pointer-events-auto gap-3">
             {loading ? (
               <div className="bg-white/90 backdrop-blur text-slate-900 px-6 py-3 rounded-full font-bold shadow-lg animate-pulse flex items-center gap-2">
                 <div className="w-2 h-2 bg-slate-900 rounded-full animate-bounce" />
                 Procesando...
               </div>
-            ) : !canUseBarcode ? (
-              <Button
-                onClick={handleCapture}
-                className="h-16 px-8 rounded-full bg-white text-slate-900 font-bold text-lg shadow-xl hover:scale-105 transition-transform flex items-center gap-2"
-              >
-                <Camera className="text-violet-600" />
-                Tomar Foto
-              </Button>
             ) : (
-              <p className="text-white/70 text-sm font-medium bg-black/40 px-4 py-2 rounded-full backdrop-blur-md">
-                Apunta la cámara al código ISBN
+              <p className="text-white/80 text-sm font-medium bg-black/50 px-5 py-2.5 rounded-full backdrop-blur-md">
+                📱 Apunta al código · 🤖 IA automática en 5s
               </p>
             )}
 

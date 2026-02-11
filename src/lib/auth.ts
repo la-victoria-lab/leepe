@@ -4,7 +4,7 @@ const envAdmins = (process.env.ADMIN_EMAILS || '')
   .map((e) => e.trim())
   .filter(Boolean)
 
-export const adminEmails = ['fabio@lavictoria.pe', ...envAdmins]
+export const adminEmails = envAdmins
 
 export type UserRole = 'admin' | 'user'
 

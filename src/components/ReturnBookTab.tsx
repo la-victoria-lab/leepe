@@ -70,11 +70,7 @@ export default function ReturnBookTab() {
     }
   }
 
-  const handleCapture = () => {
-    setError('')
-    setResult(null)
-    scannerRef.current?.capture()
-  }
+  // Captura automática - ya no necesitamos botón manual
 
   return (
     <div className='flex flex-col gap-5 w-full'>
@@ -88,14 +84,14 @@ export default function ReturnBookTab() {
         />
       </div>
 
-      <button
-        type='button'
-        onClick={handleCapture}
-        disabled={loading}
-        className='w-full py-5 rounded-2xl bg-black text-white text-lg font-bold hover:bg-gray-900 active:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 touch-manipulation transition-all active:scale-[0.99] shadow-md'
-      >
-        {loading ? 'Procesando...' : 'Capturar foto'}
-      </button>
+      {loading && (
+        <div className='w-full py-5 rounded-2xl bg-purple-100 text-purple-900 text-lg font-bold text-center border-2 border-purple-200'>
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" />
+            Procesando...
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className='p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl'>

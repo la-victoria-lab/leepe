@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { extractISBNFromImage } from '@/lib/isbn-extractor';
 import { requireCompanyUser } from '@/lib/api-auth';
+import { IsbnSchema, validateOrError } from '@/lib/validations';
+import { apiLogger } from '@/lib/logger';
 
 function getBorrowerLabel(email: string, fullName: string | undefined | null) {
   const normalizedEmail = email.trim().toLowerCase()
@@ -49,6 +51,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validar formato de ISBN
+    const validation = validateOrError(IsbnSchema, isbn)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
     // Check if book exists in inventory
     const { data: libro, error: libroError } = await auth.supabase
       .from('libros')
@@ -89,12 +100,14 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (prestamoError) {
-      console.error('[lend-book] Database error:', prestamoError);
+      apiLogger.error({ err: prestamoError, isbn, borrower }, 'Database error creating loan');
       return NextResponse.json(
         { error: 'Error al registrar el préstamo' },
         { status: 500 }
       );
     }
+
+    apiLogger.info({ isbn, borrower, prestamoId: prestamo.id }, 'Book lent successfully');
 
     return NextResponse.json({
       message: 'Libro prestado exitosamente',
@@ -102,7 +115,7 @@ export async function POST(request: NextRequest) {
       libro,
     });
   } catch (error) {
-    console.error('[lend-book] Error:', error);
+    apiLogger.error({ err: error }, 'Error lending book');
     return NextResponse.json(
       { error: 'Error al prestar el libro' },
       { status: 500 }
