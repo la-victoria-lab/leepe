@@ -31,7 +31,11 @@ export default function LoginClient({ nextPath, errorCode }: LoginClientProps) {
     setIsLoading(true)
     try {
       const supabase = createSupabaseBrowserClient()
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
+      // Use environment variable for production, fallback to window.location.origin for development
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent(nextPath)}`
+
+      console.log('[auth] Redirect URL:', redirectTo)
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
