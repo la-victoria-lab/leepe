@@ -1,32 +1,22 @@
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+let client: SupabaseClient | null = null
+
 export function createSupabaseBrowserClient() {
-  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        // Use localStorage instead of cookies for better iOS PWA compatibility
-        const keys = Object.keys(localStorage)
-        return keys
-          .filter(key => key.startsWith('sb-'))
-          .map(key => ({
-            name: key,
-            value: localStorage.getItem(key) || ''
-          }))
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          if (value) {
-            localStorage.setItem(name, value)
-          } else {
-            localStorage.removeItem(name)
-          }
-        })
-      },
+  if (client) return client
+
+  client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      flowType: 'pkce',
+      storage: localStorage,
+      detectSessionInUrl: false,
     },
   })
+
+  return client
 }
 
 
