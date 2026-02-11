@@ -3,9 +3,9 @@
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { isAllowedCompanyEmail } from '@/lib/auth'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -88,5 +88,22 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className='min-h-screen flex items-center justify-center p-6'>
+        <div className='w-full max-w-md border rounded-xl p-6 bg-white shadow'>
+          <h1 className='text-xl font-bold mb-2'>Cargando...</h1>
+          <div className='mt-4 flex justify-center'>
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   )
 }
