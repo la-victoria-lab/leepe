@@ -1,13 +1,7 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import {
-  BrowserMultiFormatReader,
-  NotFoundException,
-  HTMLCanvasElementLuminanceSource,
-  BinaryBitmap,
-  HybridBinarizer,
-} from '@zxing/library'
+import { scanImageData } from '@undecaf/zbar-wasm'
 import { isbnLogger } from '@/lib/logger'
 
 export type IsbnScannerRef = {
@@ -25,8 +19,8 @@ type IsbnScannerProps = {
   sessionId?: number
 }
 
-// Timeout para fallback automático a OpenAI (5 segundos)
 const AUTO_FALLBACK_TIMEOUT = 5000
+const SCAN_INTERVAL = 300
 
 function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   return new Promise((resolve) => {
@@ -62,7 +56,7 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
   ) => {
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
-    const readerRef = useRef<BrowserMultiFormatReader | null>(null)
+    const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
     const [error, setError] = useState<string>('')
     const [isReady, setIsReady] = useState(false)
@@ -89,7 +83,12 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       let cancelled = false
       let fallbackTimer: NodeJS.Timeout | null = null
       let hasDetectedBarcode = false
-      let decodingInterval: NodeJS.Timeout | null = null
+      let scanInterval: NodeJS.Timeout | null = null
+
+      // Canvas reutilizable para evitar crear uno nuevo cada frame
+      if (!canvasRef.current) {
+        canvasRef.current = document.createElement('canvas')
+      }
 
       const start = async () => {
         setError('')
@@ -107,7 +106,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
 
           isbnLogger.info('Requesting camera access...')
 
-          // Paso 1: Obtener stream manualmente (como el test que funciona)
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: { ideal: 'environment' },
@@ -123,15 +121,10 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           }
 
           streamRef.current = stream
-          isbnLogger.info('Camera access granted')
-
-          // Paso 2: Asignar stream al video (exactamente como el test)
           video.srcObject = stream
 
-          // Paso 3: Esperar a que el video esté reproduciendo
           await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => reject(new Error('Video playback timeout')), 5000)
-
             video.onloadedmetadata = () => {
               video.play()
                 .then(() => {
@@ -150,58 +143,52 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           })
 
           if (cancelled) return
-
           setIsReady(true)
 
-          // Paso 4: Usar ZXing para decodificar frames del video ya reproduciendo
-          const reader = new BrowserMultiFormatReader()
-          readerRef.current = reader
+          isbnLogger.info('Starting ZBar WASM barcode scanning...')
 
-          isbnLogger.info('Starting ZXing barcode scanning on live video...')
+          const canvas = canvasRef.current!
 
-          // Escanear frames periódicamente usando decodeFromCanvas
-          const scanFrame = () => {
+          const scanFrame = async () => {
             if (cancelled || hasDetectedBarcode || !video.videoWidth) return
 
             try {
-              const canvas = document.createElement('canvas')
               canvas.width = video.videoWidth
               canvas.height = video.videoHeight
               const ctx = canvas.getContext('2d')
               if (!ctx) return
+
               ctx.drawImage(video, 0, 0)
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+              const symbols = await scanImageData(imageData)
 
-              const luminanceSource = new HTMLCanvasElementLuminanceSource(canvas)
-              const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource))
-              const result = reader.decodeBitmap(binaryBitmap)
+              if (symbols.length > 0 && !cancelled && !hasDetectedBarcode) {
+                const barcode = symbols[0]
+                const isbn = barcode.decode().trim()
 
-              if (result) {
-                const isbn = result.getText().trim()
                 if (isbn) {
                   hasDetectedBarcode = true
-                  isbnLogger.info({ isbn, method: 'zxing' }, 'ISBN detected with ZXing')
+                  isbnLogger.info({ isbn, type: barcode.typeName, method: 'zbar-wasm' }, 'Barcode detected')
+
                   if (fallbackTimer) {
                     clearTimeout(fallbackTimer)
                     fallbackTimer = null
                   }
+
                   onDetected(isbn)
                 }
               }
             } catch (e) {
-              // NotFoundException es normal (no hay código en el frame)
-              if (!(e instanceof NotFoundException)) {
-                isbnLogger.warn({ err: e }, 'ZXing scan error (non-critical)')
-              }
+              // Errores de escaneo no son críticos
+              isbnLogger.warn({ err: e }, 'ZBar scan error (non-critical)')
             }
           }
 
-          // Escanear cada 250ms
-          decodingInterval = setInterval(scanFrame, 250)
+          scanInterval = setInterval(scanFrame, SCAN_INTERVAL)
 
-          // Paso 5: Fallback automático a OpenAI después de 5 segundos
           fallbackTimer = setTimeout(async () => {
             if (cancelled || hasDetectedBarcode || !onCapture) return
-            isbnLogger.warn('ZXing could not detect barcode after 5s, auto-capturing for OpenAI')
+            isbnLogger.warn('ZBar could not detect barcode after 5s, auto-capturing for OpenAI')
             setIsFallingBackToOpenAI(true)
 
             const file = await captureFrame(video)
@@ -235,11 +222,7 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       return () => {
         cancelled = true
         if (fallbackTimer) clearTimeout(fallbackTimer)
-        if (decodingInterval) clearInterval(decodingInterval)
-        if (readerRef.current) {
-          try { readerRef.current.reset() } catch {}
-          readerRef.current = null
-        }
+        if (scanInterval) clearInterval(scanInterval)
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop())
           streamRef.current = null
@@ -250,14 +233,12 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       }
     }, [isActive, onDetected, onCapture, sessionId])
 
-    // Si el padre pasa videoClassName con "absolute", el scanner debe llenar todo el espacio
     const isAbsoluteVideo = videoClassName?.includes('absolute')
 
     const videoClasses = isAbsoluteVideo
       ? videoClassName
       : ['w-full', videoClassName || 'h-[42dvh] max-h-[420px] min-h-64'].join(' ').trim()
 
-    // Cuando el video es absolute, el contenedor debe llenar el espacio del padre
     if (isAbsoluteVideo) {
       return (
         <div className={`relative w-full h-full ${containerClassName || ''}`}>
