@@ -59,8 +59,8 @@ function AuthCallbackContent() {
 
       console.log('[auth] Login successful for:', user.email)
 
-      // Redirect to next path
-      router.replace(nextPath)
+      // Full page navigation to ensure server components pick up the new session
+      window.location.replace(nextPath)
     }
 
     handleCallback()
