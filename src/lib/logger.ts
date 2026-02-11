@@ -10,17 +10,8 @@ import pino from 'pino'
 export const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
 
-  // Formato bonito en desarrollo
-  transport: process.env.NODE_ENV === 'development'
-    ? {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          translateTime: 'SYS:standard',
-          ignore: 'pid,hostname',
-        },
-      }
-    : undefined,
+  // Sin transport en Next.js (los workers causan problemas)
+  // El output JSON se puede procesar después si es necesario
 
   // Metadata base
   base: {
@@ -32,6 +23,11 @@ export const logger = pino({
     err: pino.stdSerializers.err,
     error: pino.stdSerializers.err,
   },
+
+  // Formato básico para el navegador
+  browser: {
+    asObject: process.env.NODE_ENV === 'development',
+  }
 })
 
 /**

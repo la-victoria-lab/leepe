@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     if (isbn === 'NOT_FOUND') {
       return NextResponse.json(
-        { error: 'No se encontró código ISBN en la imagen' },
+        { error: 'No se encontró código ISBN en la imagen', type: 'isbn_not_detected' },
         { status: 404 }
       );
     }
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const validation = validateOrError(IsbnSchema, isbn)
     if (!validation.success) {
       return NextResponse.json(
-        { error: validation.error },
+        { error: validation.error, type: 'invalid_isbn' },
         { status: 400 }
       );
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     if (libroError || !libro) {
       return NextResponse.json(
-        { error: 'Libro no encontrado en el inventario. Por favor regístralo primero.' },
+        { error: 'Este libro no está registrado en el inventario', type: 'book_not_found', isbn },
         { status: 404 }
       );
     }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     if (activePrestamo) {
       return NextResponse.json(
-        { error: `El libro ya está prestado a ${activePrestamo.persona}` },
+        { error: `Este libro ya está prestado a ${activePrestamo.persona}`, type: 'already_lent' },
         { status: 400 }
       );
     }

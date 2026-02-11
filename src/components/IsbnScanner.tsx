@@ -1,7 +1,13 @@
 'use client'
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { BrowserMultiFormatReader, NotFoundException, BarcodeFormat } from '@zxing/library'
+import {
+  BrowserMultiFormatReader,
+  NotFoundException,
+  HTMLCanvasElementLuminanceSource,
+  BinaryBitmap,
+  HybridBinarizer,
+} from '@zxing/library'
 import { isbnLogger } from '@/lib/logger'
 
 export type IsbnScannerRef = {
@@ -21,6 +27,25 @@ type IsbnScannerProps = {
 
 // Timeout para fallback automático a OpenAI (5 segundos)
 const AUTO_FALLBACK_TIMEOUT = 5000
+
+function captureFrame(video: HTMLVideoElement): Promise<File | null> {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return resolve(null)
+    ctx.drawImage(video, 0, 0)
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return resolve(null)
+        resolve(new File([blob], 'capture.jpg', { type: 'image/jpeg' }))
+      },
+      'image/jpeg',
+      0.85
+    )
+  })
+}
 
 const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
   (
@@ -44,34 +69,15 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
     const [isFallingBackToOpenAI, setIsFallingBackToOpenAI] = useState(false)
 
     useImperativeHandle(ref, () => ({
-      capture: () => {
+      capture: async () => {
         if (!videoRef.current || !onCapture) return
-
-        const video = videoRef.current
-        const canvas = document.createElement('canvas')
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        ctx.drawImage(video, 0, 0)
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) return
-            const file = new File([blob], 'snapshot.jpg', { type: 'image/jpeg' })
-            onCapture(file)
-          },
-          'image/jpeg',
-          0.85
-        )
+        const file = await captureFrame(videoRef.current)
+        if (file) onCapture(file)
       },
-      canUseBarcodeDetector: true, // ZXing funciona en todos los navegadores
+      canUseBarcodeDetector: true,
     }))
 
     useEffect(() => {
-      // ZXing funciona en todos los navegadores modernos
       if (onBarcodeSupportChange) {
         onBarcodeSupportChange(true)
       }
@@ -81,23 +87,27 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       if (!isActive) return
 
       let cancelled = false
-      let manualCaptureTimer: NodeJS.Timeout | null = null
+      let fallbackTimer: NodeJS.Timeout | null = null
+      let hasDetectedBarcode = false
+      let decodingInterval: NodeJS.Timeout | null = null
 
       const start = async () => {
         setError('')
         setIsReady(false)
         setIsFallingBackToOpenAI(false)
+        hasDetectedBarcode = false
 
         try {
-          isbnLogger.info('Starting camera access...')
+          const video = videoRef.current
+          if (!video) throw new Error('Video element not found')
 
-          // Verificar que getUserMedia existe
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          if (!navigator.mediaDevices?.getUserMedia) {
             throw new Error('Tu navegador no soporta acceso a cámara')
           }
 
-          // Solicitar acceso a la cámara
-          isbnLogger.info('Requesting camera permission...')
+          isbnLogger.info('Requesting camera access...')
+
+          // Paso 1: Obtener stream manualmente (como el test que funciona)
           const stream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: { ideal: 'environment' },
@@ -107,136 +117,115 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             audio: false,
           })
 
-          isbnLogger.info({
-            tracks: stream.getVideoTracks().length,
-            settings: stream.getVideoTracks()[0]?.getSettings()
-          }, 'Camera access granted')
-
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop())
             return
           }
 
           streamRef.current = stream
-          const video = videoRef.current
-          if (!video) return
+          isbnLogger.info('Camera access granted')
 
+          // Paso 2: Asignar stream al video (exactamente como el test)
           video.srcObject = stream
 
-          isbnLogger.info('Starting video playback...')
-          await video.play()
+          // Paso 3: Esperar a que el video esté reproduciendo
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Video playback timeout')), 5000)
 
-          isbnLogger.info({
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            readyState: video.readyState
-          }, 'Video is playing')
+            video.onloadedmetadata = () => {
+              video.play()
+                .then(() => {
+                  clearTimeout(timeout)
+                  isbnLogger.info({
+                    videoWidth: video.videoWidth,
+                    videoHeight: video.videoHeight,
+                  }, 'Video is playing')
+                  resolve()
+                })
+                .catch((err) => {
+                  clearTimeout(timeout)
+                  reject(err)
+                })
+            }
+          })
+
+          if (cancelled) return
 
           setIsReady(true)
 
-          // Inicializar ZXing reader
-          isbnLogger.info('Initializing ZXing reader...')
+          // Paso 4: Usar ZXing para decodificar frames del video ya reproduciendo
           const reader = new BrowserMultiFormatReader()
           readerRef.current = reader
 
-          isbnLogger.info('ZXing reader initialized')
+          isbnLogger.info('Starting ZXing barcode scanning on live video...')
 
-          // Configurar formatos de código de barras para ISBNs
-          const hints = new Map()
-          hints.set(
-            2, // DecodeHintType.POSSIBLE_FORMATS
-            [
-              BarcodeFormat.EAN_13,
-              BarcodeFormat.EAN_8,
-              BarcodeFormat.CODE_128,
-              BarcodeFormat.CODE_39,
-              BarcodeFormat.UPC_A,
-              BarcodeFormat.UPC_E,
-            ]
-          )
+          // Escanear frames periódicamente usando decodeFromCanvas
+          const scanFrame = () => {
+            if (cancelled || hasDetectedBarcode || !video.videoWidth) return
 
-          // Iniciar detección continua
-          reader.decodeFromVideoDevice(
-            null, // deviceId (null = usar cámara por defecto)
-            video,
-            (result, error) => {
-              if (cancelled) return
+            try {
+              const canvas = document.createElement('canvas')
+              canvas.width = video.videoWidth
+              canvas.height = video.videoHeight
+              const ctx = canvas.getContext('2d')
+              if (!ctx) return
+              ctx.drawImage(video, 0, 0)
+
+              const luminanceSource = new HTMLCanvasElementLuminanceSource(canvas)
+              const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource))
+              const result = reader.decodeBitmap(binaryBitmap)
 
               if (result) {
                 const isbn = result.getText().trim()
                 if (isbn) {
-                  // ISBN detectado exitosamente con ZXing (GRATIS)
-                  isbnLogger.info({ isbn, method: 'zxing' }, 'ISBN detected successfully with ZXing')
-                  onDetected(isbn)
-                  // Cancelar el timer de captura manual
-                  if (manualCaptureTimer) {
-                    clearTimeout(manualCaptureTimer)
-                    manualCaptureTimer = null
+                  hasDetectedBarcode = true
+                  isbnLogger.info({ isbn, method: 'zxing' }, 'ISBN detected with ZXing')
+                  if (fallbackTimer) {
+                    clearTimeout(fallbackTimer)
+                    fallbackTimer = null
                   }
+                  onDetected(isbn)
                 }
               }
-
-              // Errores de NotFoundException son normales (no hay código en el frame)
-              if (error && !(error instanceof NotFoundException)) {
-                isbnLogger.error({ err: error }, 'ZXing scanning error')
+            } catch (e) {
+              // NotFoundException es normal (no hay código en el frame)
+              if (!(e instanceof NotFoundException)) {
+                isbnLogger.warn({ err: e }, 'ZXing scan error (non-critical)')
               }
             }
-          )
+          }
 
-          // Después de 5 segundos sin detectar nada, automáticamente capturar y enviar a OpenAI
-          manualCaptureTimer = setTimeout(() => {
-            if (!cancelled && onCapture) {
-              isbnLogger.warn('ZXing could not detect barcode after 5s, auto-capturing for OpenAI')
-              setIsFallingBackToOpenAI(true)
+          // Escanear cada 250ms
+          decodingInterval = setInterval(scanFrame, 250)
 
-              // Auto-capturar y enviar a OpenAI (transparente)
-              setTimeout(() => {
-                if (!cancelled && videoRef.current) {
-                  const video = videoRef.current
-                  const canvas = document.createElement('canvas')
-                  canvas.width = video.videoWidth
-                  canvas.height = video.videoHeight
+          // Paso 5: Fallback automático a OpenAI después de 5 segundos
+          fallbackTimer = setTimeout(async () => {
+            if (cancelled || hasDetectedBarcode || !onCapture) return
+            isbnLogger.warn('ZXing could not detect barcode after 5s, auto-capturing for OpenAI')
+            setIsFallingBackToOpenAI(true)
 
-                  const ctx = canvas.getContext('2d')
-                  if (!ctx) return
-
-                  ctx.drawImage(video, 0, 0)
-
-                  canvas.toBlob(
-                    (blob) => {
-                      if (!blob || cancelled) return
-                      const file = new File([blob], 'auto-capture.jpg', { type: 'image/jpeg' })
-                      isbnLogger.info('Auto-captured image for OpenAI fallback')
-                      onCapture(file)
-                    },
-                    'image/jpeg',
-                    0.85
-                  )
-                }
-              }, 500) // Pequeño delay para mostrar el indicador visual
+            const file = await captureFrame(video)
+            if (file && !cancelled) {
+              isbnLogger.info('Auto-captured image for OpenAI fallback')
+              onCapture(file)
             }
           }, AUTO_FALLBACK_TIMEOUT)
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-          const errorName = error instanceof Error ? error.name : 'Unknown'
 
-          isbnLogger.error({
-            err: error,
-            message: errorMessage,
-            name: errorName
-          }, 'Camera access error')
+        } catch (err) {
+          if (cancelled) return
+          const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+          const errorName = err instanceof Error ? err.name : 'Unknown'
 
-          // Mensajes de error más específicos
+          isbnLogger.error({ message: errorMessage, name: errorName }, 'Scanner initialization error')
+
           if (errorName === 'NotAllowedError') {
             setError('Permiso de cámara denegado. Por favor permite el acceso.')
           } else if (errorName === 'NotFoundError') {
             setError('No se encontró cámara en este dispositivo')
           } else if (errorName === 'NotReadableError') {
             setError('La cámara está siendo usada por otra aplicación')
-          } else if (errorMessage.includes('405')) {
-            setError('Error de conexión (405). Verifica que estés en HTTPS o localhost.')
           } else {
-            setError(`Error al acceder a la cámara: ${errorMessage}`)
+            setError(`Error: ${errorMessage}`)
           }
         }
       }
@@ -245,52 +234,61 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
 
       return () => {
         cancelled = true
-
-        // Limpiar timer
-        if (manualCaptureTimer) {
-          clearTimeout(manualCaptureTimer)
-        }
-
-        // Detener ZXing reader
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        if (decodingInterval) clearInterval(decodingInterval)
         if (readerRef.current) {
-          readerRef.current.reset()
+          try { readerRef.current.reset() } catch {}
           readerRef.current = null
         }
-
-        // Detener stream de video
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((t) => t.stop())
           streamRef.current = null
         }
+        if (videoRef.current) {
+          videoRef.current.srcObject = null
+        }
       }
-    }, [isActive, onDetected, sessionId])
+    }, [isActive, onDetected, onCapture, sessionId])
 
-    const containerClasses = [
-      'relative overflow-hidden rounded-2xl bg-black ring-1 ring-black/10 shadow-sm',
-      containerClassName || '',
-    ]
-      .join(' ')
-      .trim()
+    // Si el padre pasa videoClassName con "absolute", el scanner debe llenar todo el espacio
+    const isAbsoluteVideo = videoClassName?.includes('absolute')
 
-    const videoClasses = [
-      'w-full',
-      videoClassName || 'h-[42dvh] max-h-[420px] min-h-64',
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .trim()
+    const videoClasses = isAbsoluteVideo
+      ? videoClassName
+      : ['w-full', videoClassName || 'h-[42dvh] max-h-[420px] min-h-64'].join(' ').trim()
+
+    // Cuando el video es absolute, el contenedor debe llenar el espacio del padre
+    if (isAbsoluteVideo) {
+      return (
+        <div className={`relative w-full h-full ${containerClassName || ''}`}>
+          <video
+            ref={videoRef}
+            className={videoClasses}
+            autoPlay
+            playsInline
+            muted
+            style={{ objectFit: 'cover', background: '#000' }}
+          />
+          {error && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80">
+              <p className="text-sm text-red-400 text-center font-medium px-4">{error}</p>
+            </div>
+          )}
+        </div>
+      )
+    }
 
     return (
       <div className="flex flex-col gap-2">
-        <div className={containerClasses}>
+        <div className={`relative overflow-hidden rounded-2xl bg-black ring-1 ring-black/10 shadow-sm ${containerClassName || ''}`}>
           <div className="relative">
             <video
               ref={videoRef}
               className={videoClasses}
+              autoPlay
               playsInline
               muted
-              autoPlay
-              style={{ objectFit: 'cover' }}
+              style={{ objectFit: 'cover', background: '#000' }}
             />
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute inset-0 grid place-items-center">
@@ -298,7 +296,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
               </div>
             </div>
 
-            {/* Indicador de estado */}
             {isReady && !isFallingBackToOpenAI && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-500/90 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm font-medium flex items-center gap-2">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -306,11 +303,10 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
               </div>
             )}
 
-            {/* Indicador de fallback a OpenAI */}
             {isFallingBackToOpenAI && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-purple-500/90 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm font-medium flex items-center gap-2 animate-in fade-in zoom-in-95 duration-300">
                 <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                🤖 Analizando con IA...
+                Analizando con IA...
               </div>
             )}
           </div>
@@ -323,12 +319,12 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           {error && <p className="text-sm text-red-600 text-center font-medium">{error}</p>}
           {isReady && !error && !isFallingBackToOpenAI && (
             <p className="text-sm text-gray-500 text-center">
-              🎯 <strong>ZXing</strong> · Escaneo gratis · Fallback IA automático en 5s
+              Escaneo gratis - Fallback IA automático en 5s
             </p>
           )}
           {isFallingBackToOpenAI && (
             <p className="text-sm text-purple-600 text-center font-medium">
-              🤖 Usando OpenAI para detectar ISBN...
+              Usando OpenAI para detectar ISBN...
             </p>
           )}
         </div>

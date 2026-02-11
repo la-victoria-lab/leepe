@@ -3,8 +3,14 @@
 import IsbnScanner, { IsbnScannerRef } from '@/components/IsbnScanner'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, AlertCircle, ScanLine, Camera, XCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, ScanLine, Camera, XCircle, BookX, Info, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+type ErrorInfo = {
+  message: string
+  type: 'book_not_found' | 'already_lent' | 'isbn_not_detected' | 'invalid_isbn' | 'error'
+  isbn?: string
+}
 
 type LendBookTabProps = {
   onSuccess?: () => void
@@ -19,14 +25,14 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
     libro: { titulo: string; thumbnail: string }
     prestamo: { persona: string; fecha_prestamo: string }
   } | null>(null)
-  const [error, setError] = useState<string>('')
+  const [error, setError] = useState<ErrorInfo | null>(null)
 
   const lendByIsbn = async (isbn: string) => {
     if (loading || !isScanning) return
 
     setIsScanning(false)
     setLoading(true)
-    setError('')
+    setError(null)
     setResult(null)
 
     try {
@@ -36,21 +42,21 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
         body: JSON.stringify({ isbn }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        let errorMessage = 'Error al prestar libro'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch {
-          errorMessage = response.statusText || `Error ${response.status}`
-        }
-        throw new Error(errorMessage)
+        setError({
+          message: data.error || 'Error al prestar libro',
+          type: data.type || 'error',
+          isbn: data.isbn,
+        })
+        setIsScanning(true)
+        return
       }
 
-      const data = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      setError({ message: err instanceof Error ? err.message : 'Error desconocido', type: 'error' })
       setIsScanning(true)
     } finally {
       setLoading(false)
@@ -62,7 +68,7 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
 
     setIsScanning(false)
     setLoading(true)
-    setError('')
+    setError(null)
     setResult(null)
 
     try {
@@ -74,21 +80,21 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
         body: formData,
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        let errorMessage = 'Error al prestar libro por imagen'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
-        } catch {
-          errorMessage = response.statusText || `Error ${response.status}`
-        }
-        throw new Error(errorMessage)
+        setError({
+          message: data.error || 'Error al prestar libro',
+          type: data.type || 'error',
+          isbn: data.isbn,
+        })
+        setIsScanning(true)
+        return
       }
 
-      const data = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
+      setError({ message: err instanceof Error ? err.message : 'Error desconocido', type: 'error' })
       setIsScanning(true)
     } finally {
       setLoading(false)
@@ -99,11 +105,17 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
 
   const handleOk = () => {
     setResult(null)
-    setError('')
+    setError(null)
     setIsScanning(true)
     if (onSuccess) {
       onSuccess()
     }
+  }
+
+  const handleRetry = () => {
+    setError(null)
+    setIsScanning(true)
+    setLoading(false)
   }
 
   // Success View
@@ -155,37 +167,63 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
     )
   }
 
-  // Error View
+  // Error/Info View
   if (error) {
+    const isNotFound = error.type === 'book_not_found'
+    const isAlreadyLent = error.type === 'already_lent'
+    const isDetectionIssue = error.type === 'isbn_not_detected' || error.type === 'invalid_isbn'
+    const isRealError = error.type === 'error'
+
+    const icon = isNotFound
+      ? <BookX size={64} className="text-amber-500" />
+      : isAlreadyLent
+        ? <AlertTriangle size={64} className="text-orange-500" />
+        : isDetectionIssue
+          ? <Info size={64} className="text-blue-500" />
+          : <XCircle size={64} className="text-red-500" />
+
+    const iconBg = isNotFound
+      ? 'bg-amber-100'
+      : isAlreadyLent
+        ? 'bg-orange-100'
+        : isDetectionIssue
+          ? 'bg-blue-100'
+          : 'bg-red-100'
+
+    const title = isNotFound
+      ? 'Libro no registrado'
+      : isAlreadyLent
+        ? 'Libro ya prestado'
+        : isDetectionIssue
+          ? 'No se pudo leer el código'
+          : 'Algo salió mal'
+
     return (
       <div className="flex flex-col h-full items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
-        <div className="mb-6 bg-red-100 p-6 rounded-full">
-          <XCircle
-            size={64}
-            className="text-red-500"
-          />
+        <div className={`mb-6 ${iconBg} p-6 rounded-full`}>
+          {icon}
         </div>
 
-        <h3 className="text-2xl font-black text-slate-800 mb-2">Algo salió mal</h3>
-        <p className="text-slate-500 font-medium mb-8 max-w-xs mx-auto">{error}</p>
+        <h3 className="text-2xl font-black text-slate-800 mb-2">{title}</h3>
+        <p className="text-slate-500 font-medium mb-2 max-w-xs mx-auto">{error.message}</p>
+        {isNotFound && error.isbn && (
+          <p className="text-slate-400 text-sm font-mono mb-6">ISBN: {error.isbn}</p>
+        )}
+        {!isNotFound && <div className="mb-6" />}
 
         <div className="flex flex-col gap-3 w-full">
           <Button
-            onClick={() => {
-              setError('')
-              setIsScanning(true)
-              setLoading(false)
-            }}
+            onClick={handleRetry}
             className="w-full h-14 rounded-2xl bg-slate-900 text-white text-lg font-bold"
           >
-            Intentar de nuevo
+            {isDetectionIssue ? 'Escanear de nuevo' : 'Intentar de nuevo'}
           </Button>
           <Button
             variant="ghost"
             onClick={onSuccess}
             className="text-slate-400 font-bold"
           >
-            Cancelar
+            Volver
           </Button>
         </div>
       </div>
@@ -222,7 +260,7 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
           </div>
 
           {/* Scanning Frame */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-40 border-2 border-white/50 rounded-3xl overflow-hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-52 border-2 border-white/50 rounded-3xl overflow-hidden shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
             <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500 shadow-[0_0_20px_rgba(239,68,68,1)] animate-[scan_2s_ease-in-out_infinite]" />
             <div className="absolute top-2 left-2 w-4 h-4 border-t-4 border-l-4 border-white rounded-tl-lg" />
             <div className="absolute top-2 right-2 w-4 h-4 border-t-4 border-r-4 border-white rounded-tr-lg" />
