@@ -52,10 +52,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar formato de ISBN
+    apiLogger.info({ rawIsbn: isbn, length: isbn.length, chars: [...isbn].map(c => c.charCodeAt(0)) }, 'ISBN before validation')
     const validation = validateOrError(IsbnSchema, isbn)
     if (!validation.success) {
+      apiLogger.warn({ rawIsbn: isbn, error: validation.error }, 'ISBN validation failed')
       return NextResponse.json(
-        { error: validation.error, type: 'invalid_isbn' },
+        { error: validation.error, type: 'invalid_isbn', rawIsbn: isbn },
         { status: 400 }
       );
     }
