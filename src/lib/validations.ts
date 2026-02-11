@@ -6,7 +6,8 @@ import { z } from 'zod'
 export const IsbnSchema = z
   .string()
   .trim()
-  .regex(/^(?:\d{10}|\d{13})$/, 'ISBN debe tener 10 o 13 dígitos numéricos')
+  .transform((val) => val.replace(/[-\s]/g, ''))
+  .pipe(z.string().regex(/^(?:\d{10}|\d{13})$/, 'ISBN debe tener 10 o 13 dígitos numéricos'))
 
 /**
  * Schema para validar múltiples ISBNs
