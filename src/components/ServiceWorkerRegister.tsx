@@ -9,7 +9,9 @@ export default function ServiceWorkerRegister() {
 
     const register = async () => {
       try {
-        await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        // Force check for updates on every page load
+        await registration.update()
       } catch (error) {
         console.error('[pwa] failed to register service worker', error)
       }
