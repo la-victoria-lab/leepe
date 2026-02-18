@@ -67,6 +67,15 @@ async function scanFileForBarcode(file: File): Promise<string | null> {
   return null
 }
 
+/** Detect iOS standalone PWA — getUserMedia is broken in this context (WebKit bug #185448) */
+function isIOSStandalone(): boolean {
+  if (typeof window === 'undefined') return false
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
+  const isStandalone = ('standalone' in navigator && (navigator as unknown as { standalone: boolean }).standalone) ||
+    window.matchMedia('(display-mode: standalone)').matches
+  return isIOS && isStandalone
+}
+
 const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
   (
     { onDetected, onCapture, onBarcodeSupportChange, isActive = true, containerClassName, videoClassName, sessionId },
@@ -80,7 +89,8 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
     const [error, setError] = useState<string>('')
     const [isReady, setIsReady] = useState(false)
     const [isFallingBackToOpenAI, setIsFallingBackToOpenAI] = useState(false)
-    const [useCaptureMode, setUseCaptureMode] = useState(false)
+    // On iOS standalone PWA, skip getUserMedia entirely and use native camera input
+    const [useCaptureMode, setUseCaptureMode] = useState(isIOSStandalone)
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false)
 
     useImperativeHandle(ref, () => ({
