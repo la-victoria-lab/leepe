@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import sharp from 'sharp'
 import { isbnLogger } from './logger'
 
 let openaiClient: OpenAI | null = null
@@ -21,26 +20,32 @@ function getOpenAIClient() {
 }
 
 /**
- * Optimiza una imagen redimensionándola y comprimiéndola antes de enviarla a OpenAI
- * Esto reduce significativamente los costos de la API
+ * Optimiza una imagen redimensionándola y comprimiéndola antes de enviarla a OpenAI.
+ * Usa dynamic import de sharp para evitar que un fallo del módulo nativo
+ * impida cargar toda la ruta API (causa de error 405 en Vercel).
  */
 async function optimizeImage(image: File): Promise<string> {
   const bytes = await image.arrayBuffer()
   const buffer = Buffer.from(bytes)
 
-  // Redimensionar y comprimir la imagen
-  const optimizedBuffer = await sharp(buffer)
-    .resize(800, 800, {
-      fit: 'inside', // Mantener aspect ratio
-      withoutEnlargement: true, // No agrandar imágenes pequeñas
-    })
-    .jpeg({
-      quality: 80, // Buena calidad, buen tamaño
-      mozjpeg: true, // Usar mozjpeg para mejor compresión
-    })
-    .toBuffer()
+  try {
+    const sharp = (await import('sharp')).default
+    const optimizedBuffer = await sharp(buffer)
+      .resize(800, 800, {
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: 80,
+        mozjpeg: true,
+      })
+      .toBuffer()
 
-  return optimizedBuffer.toString('base64')
+    return optimizedBuffer.toString('base64')
+  } catch (err) {
+    isbnLogger.warn({ err }, 'sharp not available, sending raw image')
+    return buffer.toString('base64')
+  }
 }
 
 export async function extractISBNFromImage(image: File): Promise<string> {
