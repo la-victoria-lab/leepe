@@ -27,7 +27,7 @@ export const logger = pino({
   // Formato básico para el navegador
   browser: {
     asObject: process.env.NODE_ENV === 'development',
-  }
+  },
 })
 
 /**

@@ -3,9 +3,11 @@
 ## 🔴 Problemas Reportados
 
 ### Desktop: Pantalla negra
+
 - La cámara se activa pero no se ve nada, solo negro
 
 ### Mobile: Error 405
+
 - Aparece error HTTP 405 al intentar acceder a la cámara
 
 ---
@@ -39,6 +41,7 @@ Y abre la consola del navegador (F12). Verás logs como:
 **⚠️ IMPORTANTE**: Los navegadores modernos requieren HTTPS o localhost para acceso a cámara.
 
 **Verifica tu URL:**
+
 ```
 ✅ http://localhost:3000      (OK)
 ✅ https://tu-dominio.com     (OK)
@@ -47,6 +50,7 @@ Y abre la consola del navegador (F12). Verás logs como:
 ```
 
 **Solución para testing en mobile:**
+
 ```bash
 # Opción 1: Usar ngrok
 npx ngrok http 3000
@@ -59,19 +63,23 @@ npx localtunnel --port 3000
 ### 2. Verificar Permisos de Cámara
 
 **Desktop (Chrome/Edge):**
+
 1. Click en el icono del candado (🔒) en la barra de direcciones
 2. Verifica que "Cámara" esté en "Permitir"
 3. Si está en "Bloquear", cámbialo a "Permitir" y recarga
 
 **Desktop (Safari):**
+
 1. Safari → Preferencias → Sitios web → Cámara
 2. Encuentra tu sitio y selecciona "Permitir"
 
 **Mobile (iOS Safari):**
+
 1. Configuración → Safari → Cámara
 2. Selecciona "Preguntar" o "Permitir"
 
 **Mobile (Android Chrome):**
+
 1. Chrome → Configuración → Configuración de sitios → Cámara
 2. Busca tu sitio y permite acceso
 
@@ -80,16 +88,19 @@ npx localtunnel --port 3000
 Abre la consola del navegador:
 
 **Desktop:**
+
 - Chrome/Edge: F12 o Ctrl+Shift+I
 - Safari: Cmd+Option+I (habilitar menú Desarrollador primero)
 
 **Mobile:**
+
 - iOS Safari: Conecta a Mac → Safari → Develop → Tu iPhone
 - Android Chrome: chrome://inspect en desktop
 
 **Busca estos mensajes:**
 
 #### ✅ Éxito:
+
 ```
 [INFO] Camera access granted
 [INFO] Video is playing { videoWidth: 1280, ... }
@@ -98,27 +109,35 @@ Abre la consola del navegador:
 #### ❌ Errores comunes:
 
 **"NotAllowedError":**
+
 ```
 [ERROR] Camera access error { name: "NotAllowedError" }
 ```
+
 **Solución**: Dar permisos de cámara (ver paso 2)
 
 **"NotFoundError":**
+
 ```
 [ERROR] Camera access error { name: "NotFoundError" }
 ```
+
 **Solución**: El dispositivo no tiene cámara o no está conectada
 
 **"NotReadableError":**
+
 ```
 [ERROR] Camera access error { name: "NotReadableError" }
 ```
+
 **Solución**: Otra app está usando la cámara. Cierra Zoom, Teams, etc.
 
 **Error 405:**
+
 ```
 [ERROR] Camera access error { message: "...405..." }
 ```
+
 **Solución**: Estás accediendo por HTTP desde mobile. Usa HTTPS (ver paso 1)
 
 ### 4. Probar con Versión Simple
@@ -174,10 +193,12 @@ EOF
 Luego ve a: `http://localhost:3000/test-camera.html`
 
 **Si esto funciona pero el scanner no:**
+
 - Problema es con ZXing, no con la cámara
 - Verifica que @zxing/library esté instalado correctamente
 
 **Si esto NO funciona:**
+
 - Problema es con permisos/HTTPS
 - Sigue los pasos 1 y 2
 
@@ -214,6 +235,7 @@ Comenta temporalmente ZXing para ver si el video se muestra:
 **Causa principal:** Acceso por HTTP sin HTTPS
 
 **Verificación:**
+
 ```
 URL actual: _____________
 
@@ -224,6 +246,7 @@ Si empieza con http:// (no https://) y NO es localhost
 **Soluciones:**
 
 **Opción A: ngrok (más fácil)**
+
 ```bash
 bun run dev
 # En otra terminal:
@@ -234,6 +257,7 @@ npx ngrok http 3000
 ```
 
 **Opción B: Certificado SSL local**
+
 ```bash
 # Instalar mkcert
 brew install mkcert
@@ -246,6 +270,7 @@ mkcert localhost
 ```
 
 **Opción C: Deploy temporal en Vercel**
+
 ```bash
 npx vercel --prod
 # Te da URL HTTPS automáticamente
@@ -268,21 +293,22 @@ npx vercel --prod
 ## 🆘 Si Nada Funciona
 
 1. **Captura logs completos:**
+
    ```bash
    # En consola del navegador:
    # Copia TODO el output cuando intentas activar la cámara
    ```
 
 2. **Info del sistema:**
-   - Navegador y versión: _____________
-   - Sistema operativo: _____________
-   - URL que estás usando: _____________
-   - ¿Es HTTP o HTTPS?: _____________
+   - Navegador y versión: ******\_******
+   - Sistema operativo: ******\_******
+   - URL que estás usando: ******\_******
+   - ¿Es HTTP o HTTPS?: ******\_******
 
 3. **Prueba básica:**
    - ¿Funciona el test-camera.html?: Sí / No
    - ¿Aparece mensaje de permisos?: Sí / No
-   - ¿Qué error exacto aparece?: _____________
+   - ¿Qué error exacto aparece?: ******\_******
 
 ---
 

@@ -36,7 +36,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=exchange_failed', origin))
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user?.email || !isAllowedCompanyEmail(user.email)) {
     await supabase.auth.signOut()

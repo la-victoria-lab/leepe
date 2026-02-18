@@ -13,7 +13,7 @@ function getUserDisplayName(email: string, fullName: string | undefined | null) 
 export default async function AdminPage() {
   const supabase = await createSupabaseServerClient()
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser()
 
   if (!user?.email) redirect('/login?next=/admin')
@@ -24,5 +24,3 @@ export default async function AdminPage() {
 
   return <AdminPageClient userName={userName} />
 }
-
-

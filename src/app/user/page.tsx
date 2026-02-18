@@ -12,7 +12,7 @@ function getUserDisplayName(email: string, fullName: string | undefined | null) 
 export default async function UserPage() {
   const supabase = await createSupabaseServerClient()
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser()
 
   if (!user?.email) redirect('/login?next=/user')
@@ -20,9 +20,5 @@ export default async function UserPage() {
 
   const userName = getUserDisplayName(user.email, user.user_metadata?.full_name)
 
-  return (
-    <UserPageClient userName={userName} />
-  )
+  return <UserPageClient userName={userName} />
 }
-
-

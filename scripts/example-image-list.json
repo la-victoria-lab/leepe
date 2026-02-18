@@ -1,5 +1,1 @@
-[
-  "./images/libro1.jpg",
-  "./images/libro2.jpg",
-  "./images/libro3.jpg"
-]
+["./images/libro1.jpg", "./images/libro2.jpg", "./images/libro3.jpg"]

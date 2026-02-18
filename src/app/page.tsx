@@ -5,7 +5,7 @@ import { getRoleForEmail, isAllowedCompanyEmail } from '@/lib/auth'
 export default async function Home() {
   const supabase = await createSupabaseServerClient()
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser()
 
   if (!user?.email) {

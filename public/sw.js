@@ -8,5 +8,3 @@ self.addEventListener('activate', (event) => {
 
 // minimal pwa service worker.
 // next step: add runtime caching rules if offline support is needed.
-
-

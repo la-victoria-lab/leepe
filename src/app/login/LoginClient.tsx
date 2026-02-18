@@ -43,9 +43,9 @@ export default function LoginClient({ nextPath, errorCode }: LoginClientProps) {
           redirectTo,
           queryParams: {
             hd: allowedEmailDomain,
-            prompt: 'select_account'
-          }
-        }
+            prompt: 'select_account',
+          },
+        },
       })
 
       if (error) {
@@ -59,34 +59,26 @@ export default function LoginClient({ nextPath, errorCode }: LoginClientProps) {
   }
 
   return (
-    <div className='min-h-screen flex items-center justify-center p-6'>
-      <div className='w-full max-w-md border rounded-xl p-6 bg-white shadow'>
-        <h1 className='text-2xl font-bold mb-2'>Iniciar sesión</h1>
-        <p className='text-gray-600 mb-6'>
-          Usa tu cuenta corporativa @{allowedEmailDomain}
-        </p>
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-md border rounded-xl p-6 bg-white shadow">
+        <h1 className="text-2xl font-bold mb-2">Iniciar sesión</h1>
+        <p className="text-gray-600 mb-6">Usa tu cuenta corporativa @{allowedEmailDomain}</p>
 
         {errorMessage && (
-          <div className='mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm'>
-            {errorMessage}
-          </div>
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{errorMessage}</div>
         )}
 
         <button
-          type='button'
+          type="button"
           onClick={signInWithGoogle}
           disabled={isLoading}
-          className='w-full px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold disabled:bg-gray-400'
+          className="w-full px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold disabled:bg-gray-400"
         >
           {isLoading ? 'Redirigiendo...' : 'Continuar con Google'}
         </button>
 
-        <p className='mt-4 text-xs text-gray-500'>
-          Al continuar aceptas iniciar sesión con tu cuenta corporativa
-        </p>
+        <p className="mt-4 text-xs text-gray-500">Al continuar aceptas iniciar sesión con tu cuenta corporativa</p>
       </div>
     </div>
   )
 }
-
-

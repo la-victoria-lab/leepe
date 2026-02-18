@@ -174,13 +174,27 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
     const isDetectionIssue = error.type === 'isbn_not_detected' || error.type === 'invalid_isbn'
     const isRealError = error.type === 'error'
 
-    const icon = isNotFound
-      ? <BookX size={64} className="text-amber-500" />
-      : isAlreadyLent
-        ? <AlertTriangle size={64} className="text-orange-500" />
-        : isDetectionIssue
-          ? <Info size={64} className="text-blue-500" />
-          : <XCircle size={64} className="text-red-500" />
+    const icon = isNotFound ? (
+      <BookX
+        size={64}
+        className="text-amber-500"
+      />
+    ) : isAlreadyLent ? (
+      <AlertTriangle
+        size={64}
+        className="text-orange-500"
+      />
+    ) : isDetectionIssue ? (
+      <Info
+        size={64}
+        className="text-blue-500"
+      />
+    ) : (
+      <XCircle
+        size={64}
+        className="text-red-500"
+      />
+    )
 
     const iconBg = isNotFound
       ? 'bg-amber-100'
@@ -200,15 +214,11 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
 
     return (
       <div className="flex flex-col h-full items-center justify-center p-6 text-center animate-in zoom-in-95 duration-300">
-        <div className={`mb-6 ${iconBg} p-6 rounded-full`}>
-          {icon}
-        </div>
+        <div className={`mb-6 ${iconBg} p-6 rounded-full`}>{icon}</div>
 
         <h3 className="text-2xl font-black text-slate-800 mb-2">{title}</h3>
         <p className="text-slate-500 font-medium mb-2 max-w-xs mx-auto">{error.message}</p>
-        {isNotFound && error.isbn && (
-          <p className="text-slate-400 text-sm font-mono mb-6">ISBN: {error.isbn}</p>
-        )}
+        {isNotFound && error.isbn && <p className="text-slate-400 text-sm font-mono mb-6">ISBN: {error.isbn}</p>}
         {!isNotFound && <div className="mb-6" />}
 
         <div className="flex flex-col gap-3 w-full">

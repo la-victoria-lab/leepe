@@ -1,6 +1,6 @@
-import OpenAI from 'openai';
-import sharp from 'sharp';
-import { isbnLogger } from './logger';
+import OpenAI from 'openai'
+import sharp from 'sharp'
+import { isbnLogger } from './logger'
 
 let openaiClient: OpenAI | null = null
 
@@ -15,7 +15,7 @@ function getOpenAIClient() {
   openaiClient = new OpenAI({
     apiKey,
     timeout: TIMEOUT_MS,
-    maxRetries: MAX_RETRIES
+    maxRetries: MAX_RETRIES,
   })
   return openaiClient
 }
@@ -25,22 +25,22 @@ function getOpenAIClient() {
  * Esto reduce significativamente los costos de la API
  */
 async function optimizeImage(image: File): Promise<string> {
-  const bytes = await image.arrayBuffer();
-  const buffer = Buffer.from(bytes);
+  const bytes = await image.arrayBuffer()
+  const buffer = Buffer.from(bytes)
 
   // Redimensionar y comprimir la imagen
   const optimizedBuffer = await sharp(buffer)
     .resize(800, 800, {
-      fit: 'inside',           // Mantener aspect ratio
-      withoutEnlargement: true // No agrandar imágenes pequeñas
+      fit: 'inside', // Mantener aspect ratio
+      withoutEnlargement: true, // No agrandar imágenes pequeñas
     })
     .jpeg({
-      quality: 80,              // Buena calidad, buen tamaño
-      mozjpeg: true             // Usar mozjpeg para mejor compresión
+      quality: 80, // Buena calidad, buen tamaño
+      mozjpeg: true, // Usar mozjpeg para mejor compresión
     })
-    .toBuffer();
+    .toBuffer()
 
-  return optimizedBuffer.toString('base64');
+  return optimizedBuffer.toString('base64')
 }
 
 export async function extractISBNFromImage(image: File): Promise<string> {
@@ -65,7 +65,7 @@ export async function extractISBNFromImage(image: File): Promise<string> {
     }
 
     // Optimizar imagen antes de enviar
-    const base64Image = await optimizeImage(image);
+    const base64Image = await optimizeImage(image)
 
     // Llamada a OpenAI con timeout y retries configurados
     const response = await openai.chat.completions.create({
@@ -89,24 +89,27 @@ export async function extractISBNFromImage(image: File): Promise<string> {
       ],
       max_tokens: 100,
       temperature: 0, // Más determinístico para extracción de datos
-    });
+    })
 
-    const result = response.choices[0]?.message?.content?.trim() || 'NOT_FOUND';
+    const result = response.choices[0]?.message?.content?.trim() || 'NOT_FOUND'
 
     // Log para debugging
     if (result !== 'NOT_FOUND') {
       isbnLogger.info({ isbn: result }, 'ISBN extracted successfully')
     }
 
-    return result;
+    return result
   } catch (error) {
     // Manejo detallado de errores
     if (error instanceof Error) {
-      isbnLogger.error({
-        err: error,
-        message: error.message,
-        name: error.name
-      }, 'Error extracting ISBN')
+      isbnLogger.error(
+        {
+          err: error,
+          message: error.message,
+          name: error.name,
+        },
+        'Error extracting ISBN'
+      )
 
       // Errores específicos de OpenAI
       if ('status' in error) {

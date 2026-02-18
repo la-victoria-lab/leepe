@@ -6,7 +6,7 @@ import { authLogger } from '@/lib/logger'
 export async function requireCompanyUser() {
   const supabase = await createSupabaseServerClient()
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser()
 
   if (!user?.email) {
@@ -28,10 +28,14 @@ export async function requireAdmin() {
   const userEmail = auth.user.email || ''
   if (!isAdminEmail(userEmail)) {
     authLogger.warn({ userEmail, adminEmails }, 'User is not admin')
-    return { ok: false as const, response: NextResponse.json({ error: 'Acceso denegado. Se requieren permisos de administrador.' }, { status: 403 }) }
+    return {
+      ok: false as const,
+      response: NextResponse.json(
+        { error: 'Acceso denegado. Se requieren permisos de administrador.' },
+        { status: 403 }
+      ),
+    }
   }
 
   return auth
 }
-
-

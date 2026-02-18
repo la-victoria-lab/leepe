@@ -14,7 +14,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const nextPath = getFirst(params.next) || '/'
   const errorCode = getFirst(params.error)
 
-  return <LoginClient nextPath={nextPath} errorCode={errorCode} />
+  return (
+    <LoginClient
+      nextPath={nextPath}
+      errorCode={errorCode}
+    />
+  )
 }
-
-

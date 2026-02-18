@@ -43,15 +43,7 @@ function captureFrame(video: HTMLVideoElement): Promise<File | null> {
 
 const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
   (
-    {
-      onDetected,
-      onCapture,
-      onBarcodeSupportChange,
-      isActive = true,
-      containerClassName,
-      videoClassName,
-      sessionId,
-    },
+    { onDetected, onCapture, onBarcodeSupportChange, isActive = true, containerClassName, videoClassName, sessionId },
     ref
   ) => {
     const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -121,7 +113,10 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
               audio: false,
             }),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('No se pudo acceder a la cámara. Intenta cerrar y abrir la app.')), 10000)
+              setTimeout(
+                () => reject(new Error('No se pudo acceder a la cámara. Intenta cerrar y abrir la app.')),
+                10000
+              )
             ),
           ])
 
@@ -138,13 +133,17 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             video.onloadedmetadata = () => {
               // Small delay helps iOS WKWebView process the stream
               setTimeout(() => {
-                video.play()
+                video
+                  .play()
                   .then(() => {
                     clearTimeout(timeout)
-                    isbnLogger.info({
-                      videoWidth: video.videoWidth,
-                      videoHeight: video.videoHeight,
-                    }, 'Video is playing')
+                    isbnLogger.info(
+                      {
+                        videoWidth: video.videoWidth,
+                        videoHeight: video.videoHeight,
+                      },
+                      'Video is playing'
+                    )
                     resolve()
                   })
                   .catch((err) => {
@@ -210,7 +209,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
               onCapture(file)
             }
           }, AUTO_FALLBACK_TIMEOUT)
-
         } catch (err) {
           if (cancelled) return
           const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
@@ -273,7 +271,9 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
 
     return (
       <div className="flex flex-col gap-2">
-        <div className={`relative overflow-hidden rounded-2xl bg-black ring-1 ring-black/10 shadow-sm ${containerClassName || ''}`}>
+        <div
+          className={`relative overflow-hidden rounded-2xl bg-black ring-1 ring-black/10 shadow-sm ${containerClassName || ''}`}
+        >
           <div className="relative">
             <video
               ref={videoRef}
@@ -310,14 +310,10 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           )}
           {error && <p className="text-sm text-red-600 text-center font-medium">{error}</p>}
           {isReady && !error && !isFallingBackToOpenAI && (
-            <p className="text-sm text-gray-500 text-center">
-              Escaneo gratis - Fallback IA automático en 5s
-            </p>
+            <p className="text-sm text-gray-500 text-center">Escaneo gratis - Fallback IA automático en 5s</p>
           )}
           {isFallingBackToOpenAI && (
-            <p className="text-sm text-purple-600 text-center font-medium">
-              Usando OpenAI para detectar ISBN...
-            </p>
+            <p className="text-sm text-purple-600 text-center font-medium">Usando OpenAI para detectar ISBN...</p>
           )}
         </div>
       </div>

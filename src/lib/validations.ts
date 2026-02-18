@@ -40,12 +40,7 @@ export const BookSearchSchema = z.object({
     .min(1, 'Búsqueda no puede estar vacía')
     .max(200, 'Búsqueda no puede exceder 200 caracteres')
     .optional(),
-  page: z
-    .number()
-    .int('Página debe ser un número entero')
-    .positive('Página debe ser mayor a 0')
-    .optional()
-    .default(1),
+  page: z.number().int('Página debe ser un número entero').positive('Página debe ser mayor a 0').optional().default(1),
   limit: z
     .number()
     .int('Límite debe ser un número entero')
@@ -70,12 +65,8 @@ export const GoogleBookSchema = z.object({
  * Schema para validar archivos de imagen
  */
 export const ImageFileSchema = z.object({
-  type: z
-    .string()
-    .refine((type) => type.startsWith('image/'), 'El archivo debe ser una imagen'),
-  size: z
-    .number()
-    .max(10 * 1024 * 1024, 'La imagen no puede exceder 10MB'),
+  type: z.string().refine((type) => type.startsWith('image/'), 'El archivo debe ser una imagen'),
+  size: z.number().max(10 * 1024 * 1024, 'La imagen no puede exceder 10MB'),
   name: z.string().min(1, 'Nombre de archivo requerido'),
 })
 

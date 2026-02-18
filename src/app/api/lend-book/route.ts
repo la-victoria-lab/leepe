@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
 
-import { extractISBNFromImage } from '@/lib/isbn-extractor';
-import { requireCompanyUser } from '@/lib/api-auth';
-import { IsbnSchema, validateOrError } from '@/lib/validations';
-import { apiLogger } from '@/lib/logger';
+import { extractISBNFromImage } from '@/lib/isbn-extractor'
+import { requireCompanyUser } from '@/lib/api-auth'
+import { IsbnSchema, validateOrError } from '@/lib/validations'
+import { apiLogger } from '@/lib/logger'
 
 function getBorrowerLabel(email: string, fullName: string | undefined | null) {
   const normalizedEmail = email.trim().toLowerCase()
@@ -24,56 +24,46 @@ export async function POST(request: NextRequest) {
       const body = (await request.json()) as { isbn?: string }
       isbn = (body?.isbn || '').trim()
     } else {
-      const formData = await request.formData();
-      const image = formData.get('image') as File;
+      const formData = await request.formData()
+      const image = formData.get('image') as File
 
       if (!image) {
-        return NextResponse.json(
-          { error: 'Se requiere isbn o imagen' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Se requiere isbn o imagen' }, { status: 400 })
       }
 
-      isbn = await extractISBNFromImage(image);
+      isbn = await extractISBNFromImage(image)
     }
 
     if (!isbn) {
-      return NextResponse.json(
-        { error: 'Se requiere isbn o imagen' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Se requiere isbn o imagen' }, { status: 400 })
     }
 
     if (isbn === 'NOT_FOUND') {
       return NextResponse.json(
         { error: 'No se encontró código ISBN en la imagen', type: 'isbn_not_detected' },
         { status: 404 }
-      );
+      )
     }
 
     // Validar formato de ISBN
-    apiLogger.info({ rawIsbn: isbn, length: isbn.length, chars: [...isbn].map(c => c.charCodeAt(0)) }, 'ISBN before validation')
+    apiLogger.info(
+      { rawIsbn: isbn, length: isbn.length, chars: [...isbn].map((c) => c.charCodeAt(0)) },
+      'ISBN before validation'
+    )
     const validation = validateOrError(IsbnSchema, isbn)
     if (!validation.success) {
       apiLogger.warn({ rawIsbn: isbn, error: validation.error }, 'ISBN validation failed')
-      return NextResponse.json(
-        { error: validation.error, type: 'invalid_isbn', rawIsbn: isbn },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validation.error, type: 'invalid_isbn', rawIsbn: isbn }, { status: 400 })
     }
 
     // Check if book exists in inventory
-    const { data: libro, error: libroError } = await auth.supabase
-      .from('libros')
-      .select('*')
-      .eq('isbn', isbn)
-      .single();
+    const { data: libro, error: libroError } = await auth.supabase.from('libros').select('*').eq('isbn', isbn).single()
 
     if (libroError || !libro) {
       return NextResponse.json(
         { error: 'Este libro no está registrado en el inventario', type: 'book_not_found', isbn },
         { status: 404 }
-      );
+      )
     }
 
     // Check if book is already lent
@@ -82,13 +72,13 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('libro_isbn', isbn)
       .eq('devuelto', false)
-      .single();
+      .single()
 
     if (activePrestamo) {
       return NextResponse.json(
         { error: `Este libro ya está prestado a ${activePrestamo.persona}`, type: 'already_lent' },
         { status: 400 }
-      );
+      )
     }
 
     // Create loan record
@@ -99,28 +89,22 @@ export async function POST(request: NextRequest) {
         persona: borrower,
       })
       .select()
-      .single();
+      .single()
 
     if (prestamoError) {
-      apiLogger.error({ err: prestamoError, isbn, borrower }, 'Database error creating loan');
-      return NextResponse.json(
-        { error: 'Error al registrar el préstamo' },
-        { status: 500 }
-      );
+      apiLogger.error({ err: prestamoError, isbn, borrower }, 'Database error creating loan')
+      return NextResponse.json({ error: 'Error al registrar el préstamo' }, { status: 500 })
     }
 
-    apiLogger.info({ isbn, borrower, prestamoId: prestamo.id }, 'Book lent successfully');
+    apiLogger.info({ isbn, borrower, prestamoId: prestamo.id }, 'Book lent successfully')
 
     return NextResponse.json({
       message: 'Libro prestado exitosamente',
       prestamo,
       libro,
-    });
+    })
   } catch (error) {
-    apiLogger.error({ err: error }, 'Error lending book');
-    return NextResponse.json(
-      { error: 'Error al prestar el libro' },
-      { status: 500 }
-    );
+    apiLogger.error({ err: error }, 'Error lending book')
+    return NextResponse.json({ error: 'Error al prestar el libro' }, { status: 500 })
   }
 }

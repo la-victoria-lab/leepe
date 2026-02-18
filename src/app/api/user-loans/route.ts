@@ -16,29 +16,24 @@ export async function GET() {
 
     const { data: prestamos, error } = await auth.supabase
       .from('prestamos')
-      .select(`
+      .select(
+        `
         *,
         libros (titulo, autores, thumbnail)
-      `)
+      `
+      )
       .eq('persona', borrower)
       .eq('devuelto', false)
       .order('fecha_prestamo', { ascending: false })
 
     if (error) {
       console.error('[user-loans] Database error:', error)
-      return NextResponse.json(
-        { error: 'error al obtener préstamos' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'error al obtener préstamos' }, { status: 500 })
     }
 
     return NextResponse.json(prestamos || [])
   } catch (error) {
     console.error('[user-loans] Error:', error)
-    return NextResponse.json(
-      { error: 'error al obtener préstamos' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'error al obtener préstamos' }, { status: 500 })
   }
 }
-

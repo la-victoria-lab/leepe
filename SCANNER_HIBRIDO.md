@@ -3,6 +3,7 @@
 ## 🎯 Objetivo
 
 Implementar un sistema de escaneo de códigos de barras ISBN que:
+
 1. **Minimice costos** usando tecnología gratuita
 2. **Funcione en todos los navegadores** (Safari, Chrome, Firefox)
 3. **Mantenga alta calidad** con fallback inteligente
@@ -52,17 +53,21 @@ Implementar un sistema de escaneo de códigos de barras ISBN que:
 ## 💰 Análisis de Costos
 
 ### Escenario 1: ZXing funciona (95% de los casos)
+
 - **Costo por escaneo**: $0.00
 - **Velocidad**: Instantáneo
 - **Precisión**: Alta (específico para códigos de barras)
 
 ### Escenario 2: Fallback a OpenAI (5% de los casos)
+
 - **Costo por escaneo**: ~$0.01-0.03
 - **Velocidad**: 2-4 segundos
 - **Precisión**: Muy alta (GPT-4 Vision)
 
 ### Costo Promedio Real
+
 Con 100 escaneos:
+
 - 95 escaneos con ZXing: $0.00
 - 5 escaneos con OpenAI: $0.05-0.15
 - **Total: ~$0.05-0.15** vs **$1.00-3.00** (solo OpenAI)
@@ -75,6 +80,7 @@ Con 100 escaneos:
 ### Tecnologías Usadas
 
 #### 1. **ZXing (@zxing/library)**
+
 ```typescript
 import { BrowserMultiFormatReader, BarcodeFormat } from '@zxing/library'
 
@@ -88,18 +94,21 @@ reader.decodeFromVideoDevice(null, videoElement, (result, error) => {
 ```
 
 **Formatos soportados**:
+
 - EAN-13 (ISBN-13)
 - EAN-8 (ISBN-8)
 - Code-128
 - UPC-A/E
 
 #### 2. **OpenAI GPT-4 Vision (Fallback)**
+
 ```typescript
 // Solo se usa si ZXing no detecta nada en 15 segundos
 const isbn = await extractISBNFromImage(capturedPhoto)
 ```
 
 **Optimizaciones**:
+
 - Imagen comprimida con Sharp (800x800px, JPEG 80%)
 - Timeout de 30 segundos
 - 2 reintentos automáticos
@@ -108,19 +117,20 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 
 ## 📊 Comparación con Sistema Anterior
 
-| Aspecto | Antes (BarcodeDetector) | Ahora (ZXing Híbrido) |
-|---------|-------------------------|----------------------|
-| **Compatibilidad** | Solo Chrome Android | ✅ Todos los navegadores |
-| **Costo promedio** | Alto (fallback inmediato) | ✅ ~95% gratis |
-| **Velocidad** | Rápido (cuando funciona) | ✅ Instantáneo |
-| **Fallback** | OpenAI siempre | ✅ Solo cuando es necesario |
-| **UX** | Confusa (no detectaba nada) | ✅ Clara con indicadores |
+| Aspecto            | Antes (BarcodeDetector)     | Ahora (ZXing Híbrido)       |
+| ------------------ | --------------------------- | --------------------------- |
+| **Compatibilidad** | Solo Chrome Android         | ✅ Todos los navegadores    |
+| **Costo promedio** | Alto (fallback inmediato)   | ✅ ~95% gratis              |
+| **Velocidad**      | Rápido (cuando funciona)    | ✅ Instantáneo              |
+| **Fallback**       | OpenAI siempre              | ✅ Solo cuando es necesario |
+| **UX**             | Confusa (no detectaba nada) | ✅ Clara con indicadores    |
 
 ---
 
 ## 🎨 Indicadores UX
 
 ### Estado 1: Escaneando (0-15s)
+
 ```
 ┌─────────────────────────────────┐
 │  🔵 Buscando código de barras... │
@@ -128,6 +138,7 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ```
 
 ### Estado 2: Fallback automático (>5s)
+
 ```
 ┌─────────────────────────────────┐
 │  🟣 🤖 Analizando con IA...      │
@@ -137,6 +148,7 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ```
 
 ### Estado 3: Éxito
+
 ```
 ┌─────────────────────────────────┐
 │  ✅ ISBN detectado con ZXing     │
@@ -151,6 +163,7 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ### Logs Estructurados
 
 #### Éxito con ZXing (gratis)
+
 ```json
 {
   "level": "info",
@@ -162,6 +175,7 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ```
 
 #### Fallback a OpenAI
+
 ```json
 {
   "level": "warn",
@@ -171,6 +185,7 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ```
 
 #### Uso de OpenAI (costo)
+
 ```json
 {
   "level": "info",
@@ -186,7 +201,9 @@ const isbn = await extractISBNFromImage(capturedPhoto)
 ## 🚀 Configuración
 
 ### Timeout de fallback automático
+
 Modifica en `IsbnScanner.tsx`:
+
 ```typescript
 // Por defecto: 5 segundos (balance entre UX y costo)
 const AUTO_FALLBACK_TIMEOUT = 5000
@@ -199,13 +216,14 @@ const AUTO_FALLBACK_TIMEOUT = 8000 // 8 segundos
 ```
 
 ### Formatos de código de barras
+
 ```typescript
 const hints = new Map()
 hints.set(2, [
-  BarcodeFormat.EAN_13,    // ISBN-13 principal
-  BarcodeFormat.EAN_8,     // ISBN-8
-  BarcodeFormat.CODE_128,  // Alternativo
-  BarcodeFormat.UPC_A,     // Universal Product Code
+  BarcodeFormat.EAN_13, // ISBN-13 principal
+  BarcodeFormat.EAN_8, // ISBN-8
+  BarcodeFormat.CODE_128, // Alternativo
+  BarcodeFormat.UPC_A, // Universal Product Code
   BarcodeFormat.UPC_E,
 ])
 ```
@@ -219,6 +237,7 @@ hints.set(2, [
 **Problema**: La cámara funciona pero no detecta códigos de barras.
 
 **Soluciones**:
+
 1. Asegurar buena iluminación
 2. Mantener el código a ~15-20cm de la cámara
 3. Verificar que el código esté dentro del marco rectangular
@@ -231,6 +250,7 @@ hints.set(2, [
 **Causa**: ZXing no puede inicializar correctamente.
 
 **Solución**:
+
 1. Verificar permisos de cámara
 2. Revisar logs del navegador
 3. Asegurar que @zxing/library esté instalado: `bun install @zxing/library`
@@ -240,6 +260,7 @@ hints.set(2, [
 **Problema**: La captura manual no extrae el ISBN.
 
 **Soluciones**:
+
 1. Asegurar que el código sea visible y enfocado
 2. Buena iluminación
 3. Verificar que OPENAI_API_KEY esté configurada
@@ -252,6 +273,7 @@ hints.set(2, [
 Para evaluar el sistema, monitorea:
 
 ### KPIs
+
 - **Tasa de éxito ZXing**: >90% ideal
 - **Tiempo promedio de detección**: <3 segundos
 - **Uso de fallback OpenAI**: <10% de escaneos
@@ -260,6 +282,7 @@ Para evaluar el sistema, monitorea:
 ### Queries de logs útiles
 
 **Contar detecciones por método:**
+
 ```bash
 # ZXing
 grep "method.*zxing" logs.json | wc -l
@@ -269,6 +292,7 @@ grep "method.*openai" logs.json | wc -l
 ```
 
 **Calcular tasa de fallback:**
+
 ```bash
 # (OpenAI / Total) * 100
 ```
@@ -278,13 +302,15 @@ grep "method.*openai" logs.json | wc -l
 ## 🔐 Seguridad
 
 ### Validación de ISBN
+
 Todos los ISBNs se validan con Zod:
+
 ```typescript
-const IsbnSchema = z.string()
-  .regex(/^(?:\d{10}|\d{13})$/, 'ISBN debe tener 10 o 13 dígitos')
+const IsbnSchema = z.string().regex(/^(?:\d{10}|\d{13})$/, 'ISBN debe tener 10 o 13 dígitos')
 ```
 
 ### Límites de tamaño de imagen
+
 ```typescript
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 ```
