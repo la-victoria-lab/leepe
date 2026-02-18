@@ -102,25 +102,25 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
 
           isbnLogger.info('Requesting camera access...')
 
-          // Try with ideal constraints first, fallback to simple constraints for iOS compatibility
-          // iOS WKWebView can throw "The string did not match the expected pattern" with complex constraints
+          // iOS WKWebView can throw "The string did not match the expected pattern" with constraints
+          // Try progressively simpler constraints until one works
+          const constraintsList = [
+            { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+            { video: { facingMode: 'environment' }, audio: false },
+            { video: true, audio: false },
+          ] as const
+
           const getStream = async (): Promise<MediaStream> => {
-            try {
-              return await navigator.mediaDevices.getUserMedia({
-                video: {
-                  facingMode: { ideal: 'environment' },
-                  width: { ideal: 1280 },
-                  height: { ideal: 720 },
-                },
-                audio: false,
-              })
-            } catch {
-              isbnLogger.warn('Complex constraints failed, trying simple constraints for iOS')
-              return await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' },
-                audio: false,
-              })
+            let lastError: unknown
+            for (const constraints of constraintsList) {
+              try {
+                return await navigator.mediaDevices.getUserMedia(constraints)
+              } catch (e) {
+                lastError = e
+                isbnLogger.warn({ err: e, constraints: JSON.stringify(constraints) }, 'getUserMedia failed, trying next constraints')
+              }
             }
+            throw lastError
           }
 
           // Timeout for getUserMedia — on iOS PWA it can hang silently
