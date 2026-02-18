@@ -104,16 +104,26 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             throw new Error('Tu navegador no soporta acceso a cámara')
           }
 
+          // iOS PWA (standalone) fix: set attributes explicitly for WKWebView
+          video.setAttribute('playsinline', 'true')
+          video.setAttribute('webkit-playsinline', 'true')
+
           isbnLogger.info('Requesting camera access...')
 
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-            audio: false,
-          })
+          // Timeout for getUserMedia — on iOS PWA it can hang silently
+          const stream = await Promise.race([
+            navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: { ideal: 'environment' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+              audio: false,
+            }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('No se pudo acceder a la cámara. Intenta cerrar y abrir la app.')), 10000)
+            ),
+          ])
 
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop())
@@ -126,19 +136,22 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           await new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => reject(new Error('Video playback timeout')), 5000)
             video.onloadedmetadata = () => {
-              video.play()
-                .then(() => {
-                  clearTimeout(timeout)
-                  isbnLogger.info({
-                    videoWidth: video.videoWidth,
-                    videoHeight: video.videoHeight,
-                  }, 'Video is playing')
-                  resolve()
-                })
-                .catch((err) => {
-                  clearTimeout(timeout)
-                  reject(err)
-                })
+              // Small delay helps iOS WKWebView process the stream
+              setTimeout(() => {
+                video.play()
+                  .then(() => {
+                    clearTimeout(timeout)
+                    isbnLogger.info({
+                      videoWidth: video.videoWidth,
+                      videoHeight: video.videoHeight,
+                    }, 'Video is playing')
+                    resolve()
+                  })
+                  .catch((err) => {
+                    clearTimeout(timeout)
+                    reject(err)
+                  })
+              }, 100)
             }
           })
 
@@ -245,7 +258,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           <video
             ref={videoRef}
             className={videoClasses}
-            autoPlay
             playsInline
             muted
             style={{ objectFit: 'cover', background: '#000' }}
@@ -266,7 +278,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
             <video
               ref={videoRef}
               className={videoClasses}
-              autoPlay
               playsInline
               muted
               style={{ objectFit: 'cover', background: '#000' }}
