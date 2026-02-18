@@ -12,6 +12,17 @@ type ErrorInfo = {
   isbn?: string
 }
 
+/** Safari throws "The string did not match the expected pattern" instead of a normal JSON parse error */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function safeJson(response: Response): Promise<any> {
+  try {
+    const text = await response.text()
+    return JSON.parse(text)
+  } catch {
+    return { error: `Error del servidor (${response.status})`, type: 'error' }
+  }
+}
+
 type LendBookTabProps = {
   onSuccess?: () => void
 }
@@ -42,7 +53,7 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
         body: JSON.stringify({ isbn }),
       })
 
-      const data = await response.json()
+      const data = await safeJson(response)
 
       if (!response.ok) {
         setError({
@@ -80,7 +91,7 @@ export default function LendBookTab({ onSuccess }: LendBookTabProps) {
         body: formData,
       })
 
-      const data = await response.json()
+      const data = await safeJson(response)
 
       if (!response.ok) {
         setError({
