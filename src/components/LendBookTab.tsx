@@ -15,11 +15,13 @@ type ErrorInfo = {
 /** Safari throws "The string did not match the expected pattern" instead of a normal JSON parse error */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function safeJson(response: Response): Promise<any> {
+  const text = await response.text()
   try {
-    const text = await response.text()
     return JSON.parse(text)
   } catch {
-    return { error: `Error del servidor (${response.status})`, type: 'error' }
+    // Include response body snippet for debugging
+    const preview = text.slice(0, 200)
+    return { error: `Error del servidor (${response.status}): ${preview}`, type: 'error' }
   }
 }
 
