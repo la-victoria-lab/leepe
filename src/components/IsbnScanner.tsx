@@ -1,8 +1,9 @@
 'use client'
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { scanImageData } from '@undecaf/zbar-wasm'
 import { isbnLogger } from '@/lib/logger'
+import { Camera } from 'lucide-react'
 
 export type IsbnScannerRef = {
   capture: () => void
@@ -41,6 +42,31 @@ function captureFrame(video: HTMLVideoElement): Promise<File | null> {
   })
 }
 
+/** Try to scan an image file for barcodes using ZBar WASM */
+async function scanFileForBarcode(file: File): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bitmap, 0, 0)
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const symbols = await scanImageData(imageData)
+    if (symbols.length > 0) {
+      const isbn = symbols[0].decode().trim()
+      if (isbn) {
+        isbnLogger.info({ isbn, method: 'zbar-wasm-photo' }, 'Barcode detected from photo')
+        return isbn
+      }
+    }
+  } catch (e) {
+    isbnLogger.warn({ err: e }, 'ZBar scan on photo failed')
+  }
+  return null
+}
+
 const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
   (
     { onDetected, onCapture, onBarcodeSupportChange, isActive = true, containerClassName, videoClassName, sessionId },
@@ -49,13 +75,20 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
     const videoRef = useRef<HTMLVideoElement | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
 
     const [error, setError] = useState<string>('')
     const [isReady, setIsReady] = useState(false)
     const [isFallingBackToOpenAI, setIsFallingBackToOpenAI] = useState(false)
+    const [useCaptureMode, setUseCaptureMode] = useState(false)
+    const [isProcessingPhoto, setIsProcessingPhoto] = useState(false)
 
     useImperativeHandle(ref, () => ({
       capture: async () => {
+        if (useCaptureMode) {
+          fileInputRef.current?.click()
+          return
+        }
         if (!videoRef.current || !onCapture) return
         const file = await captureFrame(videoRef.current)
         if (file) onCapture(file)
@@ -69,15 +102,50 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
       }
     }, [onBarcodeSupportChange])
 
+    /** Handle photo taken via native camera input */
+    const handleFileCapture = useCallback(
+      async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setIsProcessingPhoto(true)
+        setError('')
+
+        try {
+          // First try ZBar on the photo
+          const isbn = await scanFileForBarcode(file)
+          if (isbn) {
+            onDetected(isbn)
+            return
+          }
+
+          // Fallback to OpenAI
+          if (onCapture) {
+            isbnLogger.info('Photo barcode not detected, sending to OpenAI')
+            setIsFallingBackToOpenAI(true)
+            onCapture(file)
+          }
+        } catch (err) {
+          isbnLogger.error({ err }, 'Error processing captured photo')
+          setError('Error al procesar la foto. Intenta de nuevo.')
+        } finally {
+          setIsProcessingPhoto(false)
+          // Reset input so the same file can be selected again
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+      },
+      [onDetected, onCapture]
+    )
+
     useEffect(() => {
       if (!isActive) return
+      if (useCaptureMode) return // Don't try getUserMedia if we already know it fails
 
       let cancelled = false
       let fallbackTimer: NodeJS.Timeout | null = null
       let hasDetectedBarcode = false
       let scanInterval: NodeJS.Timeout | null = null
 
-      // Canvas reutilizable para evitar crear uno nuevo cada frame
       if (!canvasRef.current) {
         canvasRef.current = document.createElement('canvas')
       }
@@ -93,17 +161,14 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           if (!video) throw new Error('Video element not found')
 
           if (!navigator.mediaDevices?.getUserMedia) {
-            throw new Error('Tu navegador no soporta acceso a cámara')
+            throw new Error('NO_GETUSERMEDIA')
           }
 
-          // iOS PWA (standalone) fix: set attributes explicitly for WKWebView
           video.setAttribute('playsinline', 'true')
           video.setAttribute('webkit-playsinline', 'true')
 
           isbnLogger.info('Requesting camera access...')
 
-          // iOS WKWebView can throw "The string did not match the expected pattern" with constraints
-          // Try progressively simpler constraints until one works
           const constraintsList = [
             { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
             { video: { facingMode: 'environment' }, audio: false },
@@ -117,20 +182,16 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
                 return await navigator.mediaDevices.getUserMedia(constraints)
               } catch (e) {
                 lastError = e
-                isbnLogger.warn({ err: e, constraints: JSON.stringify(constraints) }, 'getUserMedia failed, trying next constraints')
+                isbnLogger.warn({ err: e, constraints: JSON.stringify(constraints) }, 'getUserMedia failed')
               }
             }
             throw lastError
           }
 
-          // Timeout for getUserMedia — on iOS PWA it can hang silently
           const stream = await Promise.race([
             getStream(),
             new Promise<never>((_, reject) =>
-              setTimeout(
-                () => reject(new Error('No se pudo acceder a la cámara. Intenta cerrar y abrir la app.')),
-                10000
-              )
+              setTimeout(() => reject(new Error('CAMERA_TIMEOUT')), 10000)
             ),
           ])
 
@@ -143,19 +204,15 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           video.srcObject = stream
 
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('Video playback timeout')), 5000)
+            const timeout = setTimeout(() => reject(new Error('VIDEO_TIMEOUT')), 5000)
             video.onloadedmetadata = () => {
-              // Small delay helps iOS WKWebView process the stream
               setTimeout(() => {
                 video
                   .play()
                   .then(() => {
                     clearTimeout(timeout)
                     isbnLogger.info(
-                      {
-                        videoWidth: video.videoWidth,
-                        videoHeight: video.videoHeight,
-                      },
+                      { videoWidth: video.videoWidth, videoHeight: video.videoHeight },
                       'Video is playing'
                     )
                     resolve()
@@ -205,7 +262,6 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
                 }
               }
             } catch (e) {
-              // Errores de escaneo no son críticos
               isbnLogger.warn({ err: e }, 'ZBar scan error (non-critical)')
             }
           }
@@ -225,20 +281,10 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           }, AUTO_FALLBACK_TIMEOUT)
         } catch (err) {
           if (cancelled) return
-          const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-          const errorName = err instanceof Error ? err.name : 'Unknown'
 
-          isbnLogger.error({ message: errorMessage, name: errorName }, 'Scanner initialization error')
-
-          if (errorName === 'NotAllowedError') {
-            setError('Permiso de cámara denegado. Por favor permite el acceso.')
-          } else if (errorName === 'NotFoundError') {
-            setError('No se encontró cámara en este dispositivo')
-          } else if (errorName === 'NotReadableError') {
-            setError('La cámara está siendo usada por otra aplicación')
-          } else {
-            setError(`Error: ${errorMessage}`)
-          }
+          // If getUserMedia fails for any reason, switch to native camera input
+          isbnLogger.warn({ err }, 'getUserMedia failed, switching to native camera capture mode')
+          setUseCaptureMode(true)
         }
       }
 
@@ -256,8 +302,52 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
           videoRef.current.srcObject = null
         }
       }
-    }, [isActive, onDetected, onCapture, sessionId])
+    }, [isActive, onDetected, onCapture, sessionId, useCaptureMode])
 
+    // --- Native camera capture mode (iOS PWA fallback) ---
+    if (useCaptureMode) {
+      return (
+        <div className={`flex flex-col items-center justify-center gap-6 p-8 h-full ${containerClassName || ''}`}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileCapture}
+            className="hidden"
+          />
+
+          {isProcessingPhoto || isFallingBackToOpenAI ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
+                <div className="w-8 h-8 border-[3px] border-white/80 border-t-transparent rounded-full animate-spin" />
+              </div>
+              <p className="text-sm font-medium text-white/80">
+                {isFallingBackToOpenAI ? 'Analizando con IA...' : 'Procesando foto...'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-28 h-28 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-xl shadow-black/30 active:scale-95 transition-transform"
+              >
+                <Camera size={48} strokeWidth={1.5} />
+              </button>
+              <div className="text-center">
+                <p className="text-base font-bold text-white">Tomar foto del código</p>
+                <p className="text-sm text-white/50 mt-1">Se abrirá la cámara de tu dispositivo</p>
+              </div>
+            </>
+          )}
+
+          {error && <p className="text-sm text-red-400 text-center font-medium">{error}</p>}
+        </div>
+      )
+    }
+
+    // --- getUserMedia live video mode ---
     const isAbsoluteVideo = videoClassName?.includes('absolute')
 
     const videoClasses = isAbsoluteVideo
