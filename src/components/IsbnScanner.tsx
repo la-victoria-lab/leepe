@@ -102,16 +102,30 @@ const IsbnScanner = forwardRef<IsbnScannerRef, IsbnScannerProps>(
 
           isbnLogger.info('Requesting camera access...')
 
+          // Try with ideal constraints first, fallback to simple constraints for iOS compatibility
+          // iOS WKWebView can throw "The string did not match the expected pattern" with complex constraints
+          const getStream = async (): Promise<MediaStream> => {
+            try {
+              return await navigator.mediaDevices.getUserMedia({
+                video: {
+                  facingMode: { ideal: 'environment' },
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+                audio: false,
+              })
+            } catch {
+              isbnLogger.warn('Complex constraints failed, trying simple constraints for iOS')
+              return await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+              })
+            }
+          }
+
           // Timeout for getUserMedia — on iOS PWA it can hang silently
           const stream = await Promise.race([
-            navigator.mediaDevices.getUserMedia({
-              video: {
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-              },
-              audio: false,
-            }),
+            getStream(),
             new Promise<never>((_, reject) =>
               setTimeout(
                 () => reject(new Error('No se pudo acceder a la cámara. Intenta cerrar y abrir la app.')),
