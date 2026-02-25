@@ -1,8 +1,10 @@
-import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/api-auth'
 
 export async function GET(request: Request) {
-  const supabase = createSupabaseAdminClient()
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const { searchParams } = new URL(request.url)
   const search = searchParams.get('search') || ''
   const page = parseInt(searchParams.get('page') || '1')
@@ -11,7 +13,7 @@ export async function GET(request: Request) {
   const from = (page - 1) * limit
   const to = from + limit - 1
 
-  let query = supabase
+  let query = auth.supabase
     .from('libros')
     .select('*', { count: 'exact' })
     .order('titulo', { ascending: true })
@@ -38,32 +40,25 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const supabase = createSupabaseAdminClient()
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   try {
     const body = await request.json()
     const { isbn, titulo, autores, descripcion, thumbnail, image_path } = body
 
-    // Validar campos obligatorios
     if (!isbn || !titulo) {
       return NextResponse.json({ error: 'ISBN y Título son obligatorios' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from('libros')
-      .insert({
-        isbn,
-        titulo,
-        autores, // Debe ser array
-        descripcion,
-        thumbnail,
-        image_path,
-      })
+      .insert({ isbn, titulo, autores, descripcion, thumbnail, image_path })
       .select()
       .single()
 
     if (error) {
-      if (error.code === '23505') {
-        // Unique constraint violation
+      if ((error as any).code === '23505') {
         return NextResponse.json({ error: 'Este ISBN ya está registrado' }, { status: 409 })
       }
       throw error
@@ -76,16 +71,23 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const supabase = createSupabaseAdminClient()
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   try {
     const body = await request.json()
-    const { isbn, ...updates } = body // ISBN es la clave primaria
+    const { isbn, ...updates } = body
 
     if (!isbn) {
       return NextResponse.json({ error: 'ISBN es requerido para actualizar' }, { status: 400 })
     }
 
-    const { data, error } = await supabase.from('libros').update(updates).eq('isbn', isbn).select().single()
+    const { data, error } = await auth.supabase
+      .from('libros')
+      .update(updates)
+      .eq('isbn', isbn)
+      .select()
+      .single()
 
     if (error) throw error
 
@@ -96,7 +98,9 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const supabase = createSupabaseAdminClient()
+  const auth = await requireAdmin()
+  if (!auth.ok) return auth.response
+
   const { searchParams } = new URL(request.url)
   const isbn = searchParams.get('isbn')
 
@@ -104,7 +108,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'ISBN es requerido para eliminar' }, { status: 400 })
   }
 
-  const { error } = await supabase.from('libros').delete().eq('isbn', isbn)
+  const { error } = await auth.supabase.from('libros').delete().eq('isbn', isbn)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

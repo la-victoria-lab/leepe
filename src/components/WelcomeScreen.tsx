@@ -25,119 +25,7 @@ type Prestamo = {
   }
 }
 
-// MOCK DATA FICTICIA - ACTIVA
-const MOCK_PRESTAMOS: Prestamo[] = [
-  {
-    id: 1,
-    libro_isbn: '978-0142437230',
-    persona: 'Jerson',
-    fecha_prestamo: new Date().toISOString(),
-    libros: {
-      titulo: 'Don Quijote de la Mancha',
-      autores: 'Miguel de Cervantes',
-      thumbnail: 'https://covers.openlibrary.org/b/id/7222246-L.jpg',
-    },
-  },
-  {
-    id: 2,
-    libro_isbn: '978-0451524935',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 2 * 86400000).toISOString(),
-    libros: {
-      titulo: '1984',
-      autores: 'George Orwell',
-      thumbnail: 'https://covers.openlibrary.org/b/id/12613583-L.jpg',
-    },
-  },
-  {
-    id: 3,
-    libro_isbn: '9780061120084',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 5 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Cien Años de Soledad',
-      autores: 'Gabriel García Márquez',
-      thumbnail: 'https://covers.openlibrary.org/b/id/12693998-L.jpg',
-    },
-  },
-  {
-    id: 4,
-    libro_isbn: '978-0345339706',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 8 * 86400000).toISOString(),
-    libros: {
-      titulo: 'El Señor de los Anillos',
-      autores: 'J.R.R. Tolkien',
-      thumbnail: 'https://covers.openlibrary.org/b/id/8353664-L.jpg',
-    },
-  },
-  {
-    id: 5,
-    libro_isbn: '978-0747532743',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 10 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Harry Potter y la Piedra Filosofal',
-      autores: 'J.K. Rowling',
-      thumbnail: 'https://covers.openlibrary.org/b/id/10522851-L.jpg',
-    },
-  },
-  {
-    id: 6,
-    libro_isbn: '978-0140449136',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 12 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Crimen y Castigo',
-      autores: 'Fiódor Dostoyevski',
-      thumbnail: 'https://covers.openlibrary.org/b/id/7222168-L.jpg',
-    },
-  },
-  {
-    id: 7,
-    libro_isbn: '978-0307474728',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 15 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Crónica de una muerte anunciada',
-      autores: 'Gabriel García Márquez',
-      thumbnail: 'https://covers.openlibrary.org/b/id/13280037-L.jpg',
-    },
-  },
-  {
-    id: 8,
-    libro_isbn: '978-0141439518',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 20 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Orgullo y Prejuicio',
-      autores: 'Jane Austen',
-      thumbnail: 'https://covers.openlibrary.org/b/id/8259449-L.jpg',
-    },
-  },
-  {
-    id: 9,
-    libro_isbn: '978-0679783268',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 25 * 86400000).toISOString(),
-    libros: {
-      titulo: 'El Gran Gatsby',
-      autores: 'F. Scott Fitzgerald',
-      thumbnail: 'https://covers.openlibrary.org/b/id/8446927-L.jpg',
-    },
-  },
-  {
-    id: 10,
-    libro_isbn: '978-0307277671',
-    persona: 'Jerson',
-    fecha_prestamo: new Date(Date.now() - 30 * 86400000).toISOString(),
-    libros: {
-      titulo: 'Rayuela',
-      autores: 'Julio Cortázar',
-      thumbnail: 'https://covers.openlibrary.org/b/id/10609658-L.jpg',
-    },
-  },
-]
+// Datos reales desde la API; sin datos de demo
 
 export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess }: WelcomeScreenProps) {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([])
@@ -149,23 +37,19 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollY } = useScroll({ container: containerRef })
 
-  // Cargar datos (Mezclando reales con mock si falla o está vacío para demo)
+  // Cargar datos (solo reales; sin fallback de demo)
   const fetchPrestamos = async () => {
     try {
       const response = await fetch('/api/user-loans')
       if (response.ok) {
         const data = await response.json()
-        if (data && data.length > 0) {
-          setPrestamos(data)
-        } else {
-          setPrestamos(MOCK_PRESTAMOS) // Fallback a Mock si no hay datos reales
-        }
+        setPrestamos(Array.isArray(data) ? data : [])
       } else {
-        setPrestamos(MOCK_PRESTAMOS)
+        setPrestamos([])
       }
     } catch (error) {
       console.error('[WelcomeScreen] Error fetching loans:', error)
-      setPrestamos(MOCK_PRESTAMOS)
+      setPrestamos([])
     } finally {
       setLoading(false)
     }
@@ -199,13 +83,6 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
       })
 
       if (!response.ok) {
-        // En demo mode, simulamos éxito
-        if (MOCK_PRESTAMOS.find((p) => p.id === confirmReturn.id)) {
-          alert('En modo demo: Libro devuelto correctamente')
-          setPrestamos((prev) => prev.filter((p) => p.id !== confirmReturn.id))
-          return
-        }
-
         let errorMessage = 'Error al devolver libro'
         try {
           const errorData = await response.json()
