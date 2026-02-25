@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/api-auth'
+import type { PostgrestError } from '@supabase/supabase-js'
 
 export async function GET(request: Request) {
   const auth = await requireAdmin()
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      if ((error as any).code === '23505') {
+      if ((error as PostgrestError).code === '23505') {
         return NextResponse.json({ error: 'Este ISBN ya está registrado' }, { status: 409 })
       }
       throw error
