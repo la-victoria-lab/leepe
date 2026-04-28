@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   let query = auth.supabase
     .from('libros')
-    .select('*', { count: 'exact' })
+    .select('*, espacios(nombre)', { count: 'exact' })
     .order('titulo', { ascending: true })
     .range(from, to)
 
@@ -30,8 +30,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  const books = data?.map((b: Record<string, unknown>) => ({
+    ...b,
+    espacio_nombre: (b.espacios as { nombre: string } | null)?.nombre ?? null,
+    espacios: undefined,
+  }))
+
   return NextResponse.json({
-    data,
+    data: books,
     meta: {
       total: count,
       page,

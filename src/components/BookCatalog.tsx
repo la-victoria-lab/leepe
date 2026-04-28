@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Plus, Trash2, BookIcon, ChevronLeft, ChevronRight, Search, Loader2 } from 'lucide-react'
+import { Pencil, Plus, Trash2, BookIcon, ChevronLeft, ChevronRight, Search, Loader2, MapPin } from 'lucide-react'
 
 interface Book {
   isbn: string
@@ -15,6 +15,13 @@ interface Book {
   thumbnail: string
   image_path?: string
   is_active: boolean
+  espacio_id: string | null
+  espacio_nombre?: string | null
+}
+
+interface Espacio {
+  id: string
+  nombre: string
 }
 
 export default function BookCatalog() {
@@ -23,6 +30,7 @@ export default function BookCatalog() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState<{ last_page?: number; total?: number }>({})
+  const [espacios, setEspacios] = useState<Espacio[]>([])
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -52,6 +60,13 @@ export default function BookCatalog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 
+  useEffect(() => {
+    fetch('/api/admin/espacios')
+      .then((r) => r.json())
+      .then(setEspacios)
+      .catch(() => {})
+  }, [])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
@@ -78,12 +93,14 @@ export default function BookCatalog() {
   }
 
   const handleSave = async (formData: FormData) => {
+    const espacioIdVal = formData.get('espacio_id') as string
     const data = {
       isbn: formData.get('isbn'),
       titulo: formData.get('titulo'),
       autores: formData.get('autores'),
       descripcion: formData.get('descripcion'),
       thumbnail: formData.get('thumbnail'),
+      espacio_id: espacioIdVal || null,
     }
 
     try {
@@ -245,6 +262,12 @@ export default function BookCatalog() {
                   </h3>
                   <p className="text-xs text-stone-500 mt-1 line-clamp-1">{book.autores || 'Sin autor'}</p>
                   <p className="text-[10px] text-stone-400 font-mono mt-2">{book.isbn}</p>
+                  {book.espacio_nombre && (
+                    <div className="flex items-center gap-1 mt-2">
+                      <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+                      <span className="text-[10px] text-amber-600 font-medium truncate">{book.espacio_nombre}</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -312,6 +335,29 @@ export default function BookCatalog() {
                 placeholder="https://..."
               />
             </div>
+            {espacios.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                  Espacio físico
+                </label>
+                <select
+                  name="espacio_id"
+                  defaultValue={editingBook?.espacio_id || ''}
+                  className="w-full h-10 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+                >
+                  <option value="">Sin espacio asignado</option>
+                  {espacios.map((e) => (
+                    <option
+                      key={e.id}
+                      value={e.id}
+                    >
+                      {e.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"

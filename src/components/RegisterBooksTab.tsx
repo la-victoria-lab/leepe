@@ -1,13 +1,20 @@
 'use client'
 
-import { useState } from 'react'
-import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+interface Espacio {
+  id: string
+  nombre: string
+}
 
 export default function RegisterBooksTab() {
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
+  const [espacios, setEspacios] = useState<Espacio[]>([])
+  const [espacioId, setEspacioId] = useState<string>('')
   const [result, setResult] = useState<{
     registered?: Array<{ isbn: string; titulo: string }>
     duplicates?: Array<{ isbn: string; titulo?: string }>
@@ -16,6 +23,13 @@ export default function RegisterBooksTab() {
     errors?: Array<{ imageName: string }>
   } | null>(null)
   const [error, setError] = useState<string>('')
+
+  useEffect(() => {
+    fetch('/api/admin/espacios')
+      .then((r) => r.json())
+      .then(setEspacios)
+      .catch(() => {})
+  }, [])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -41,6 +55,7 @@ export default function RegisterBooksTab() {
       selectedImages.forEach((image) => {
         formData.append('images', image)
       })
+      if (espacioId) formData.append('espacio_id', espacioId)
 
       const response = await fetch('/api/register-books', {
         method: 'POST',
@@ -113,6 +128,31 @@ export default function RegisterBooksTab() {
             className="hidden"
           />
         </label>
+
+        {/* Selector de espacio */}
+        {espacios.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+              <MapPin className="h-4 w-4 text-violet-500" />
+              Espacio físico
+            </label>
+            <select
+              value={espacioId}
+              onChange={(e) => setEspacioId(e.target.value)}
+              className="w-full h-12 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500 cursor-pointer"
+            >
+              <option value="">Sin espacio asignado</option>
+              {espacios.map((e) => (
+                <option
+                  key={e.id}
+                  value={e.id}
+                >
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <Button
           type="submit"

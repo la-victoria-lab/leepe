@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpenCheck, Library, UploadCloud, User } from 'lucide-react'
+import { BookOpenCheck, Library, MapPin, UploadCloud, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import RegisterBooksTab from './RegisterBooksTab'
 import LoansHistory from './LoansHistory'
 import UserPageClient from './UserPageClient'
 import BookCatalog from './BookCatalog'
+import EspaciosTab from './EspaciosTab'
 
 import { DesktopNav } from './admin/DesktopNav'
 import { MobileNav } from './admin/MobileNav'
@@ -21,6 +22,7 @@ type AdminPageClientProps = {
 const NAV_ITEMS: NavItem[] = [
   { id: 'loans', label: 'Préstamos', icon: BookOpenCheck, color: 'text-blue-500' },
   { id: 'catalog', label: 'Catálogo', icon: Library, color: 'text-violet-500' },
+  { id: 'espacios', label: 'Espacios', icon: MapPin, color: 'text-amber-500' },
   { id: 'register', label: 'Carga', icon: UploadCloud, color: 'text-emerald-500' },
   { id: 'user', label: 'Usuario', icon: User, color: 'text-pink-500' },
 ]
@@ -77,6 +79,12 @@ export default function AdminPageClient({ userName }: AdminPageClientProps) {
                     <p className="text-slate-500 font-medium">Gestiona tu colección de libros</p>
                   </div>
                   <BookCatalog />
+                </div>
+              )}
+
+              {viewMode === 'espacios' && (
+                <div className="pt-4 md:pt-0">
+                  <EspaciosTab />
                 </div>
               )}
 

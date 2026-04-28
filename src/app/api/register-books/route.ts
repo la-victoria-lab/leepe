@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const images = formData.getAll('images') as File[]
+    const espacioId = (formData.get('espacio_id') as string) || null
 
     if (!images.length) {
       return NextResponse.json({ error: 'No se proporcionaron imágenes' }, { status: 400 })
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
           autores: book.authors || null,
           descripcion: book.description || null,
           thumbnail: book.imageLinks?.thumbnail || null,
+          espacio_id: espacioId,
           status: 'success',
         }
 
