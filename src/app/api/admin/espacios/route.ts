@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const result = withCount
-    ? data?.map((e: Record<string, unknown>) => ({
+    ? (data as unknown as Record<string, unknown>[])?.map((e) => ({
         ...e,
         libros_count: (e.libros as Array<{ count: number }>)?.[0]?.count ?? 0,
         libros: undefined,
