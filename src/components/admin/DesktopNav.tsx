@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ViewMode, NavItem } from './types'
+import LogoutButton from '@/components/LogoutButton'
 
 type DesktopNavProps = {
   viewMode: ViewMode
@@ -70,6 +71,9 @@ export function DesktopNav({ viewMode, onViewModeChange, userName, navItems }: D
           <div className="bg-gradient-to-br from-violet-100 to-indigo-50 rounded-2xl p-4 border border-violet-100">
             <p className="text-xs font-bold text-violet-400 uppercase mb-1">Usuario</p>
             <p className="text-sm font-bold text-violet-900 truncate">{userName}</p>
+            <div className="mt-3 pt-3 border-t border-violet-200/50">
+              <LogoutButton className="w-full justify-center" />
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import type { ViewMode, NavItem } from './types'
+import LogoutButton from '@/components/LogoutButton'
 
 type MobileHeaderProps = {
   viewMode: ViewMode
@@ -17,9 +18,12 @@ export function MobileHeader({ viewMode, userName, navItems }: MobileHeaderProps
         </h1>
       </div>
 
-      <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-[2px] shadow-sm">
-        <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
-          <span className="font-bold text-violet-600 text-sm">{userName.charAt(0).toUpperCase()}</span>
+      <div className="flex items-center gap-2">
+        <LogoutButton iconOnly />
+        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-violet-500 to-fuchsia-500 p-[2px] shadow-sm">
+          <div className="h-full w-full rounded-full bg-white flex items-center justify-center">
+            <span className="font-bold text-violet-600 text-sm">{userName.charAt(0).toUpperCase()}</span>
+          </div>
         </div>
       </div>
     </div>
