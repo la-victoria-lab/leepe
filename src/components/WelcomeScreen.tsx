@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { ScanBarcode, BookOpen, Clock, AlertCircle } from 'lucide-react'
+import { ScanBarcode, BookOpen, Clock, AlertCircle, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
@@ -18,10 +18,38 @@ type Prestamo = {
   libro_isbn: string
   persona: string
   fecha_prestamo: string
+  fecha_limite: string | null
   libros: {
     titulo: string
     autores: string | null
     thumbnail: string | null
+  }
+}
+
+function getDueDateStatus(fechaLimite: string | null): {
+  label: string
+  className: string
+} {
+  if (!fechaLimite) return { label: '', className: '' }
+  const hoy = new Date()
+  const limite = new Date(fechaLimite)
+  const diasRestantes = Math.ceil((limite.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diasRestantes < 0) {
+    return {
+      label: `Vencido hace ${Math.abs(diasRestantes)}d`,
+      className: 'text-red-600 bg-red-50',
+    }
+  }
+  if (diasRestantes <= 2) {
+    return {
+      label: `Vence en ${diasRestantes}d`,
+      className: 'text-orange-600 bg-orange-50',
+    }
+  }
+  return {
+    label: `Devolver ${limite.toLocaleDateString('es', { day: 'numeric', month: 'short' })}`,
+    className: 'text-violet-600 bg-violet-50',
   }
 }
 
@@ -33,6 +61,8 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   const [returningIsbn, setReturningIsbn] = useState<string | null>(null)
   const [returnError, setReturnError] = useState<string>('')
   const [confirmReturn, setConfirmReturn] = useState<Prestamo | null>(null)
+  const [renewingId, setRenewingId] = useState<string | null>(null)
+  const [renewSuccess, setRenewSuccess] = useState<string>('')
   const [isScrolled, setIsScrolled] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollY } = useScroll({ container: containerRef })
@@ -67,6 +97,28 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   const handleReturnClick = (prestamo: Prestamo) => {
     setConfirmReturn(prestamo)
     setReturnError('')
+  }
+
+  const handleRenew = async (prestamo: Prestamo) => {
+    if (renewingId) return
+    setRenewingId(String(prestamo.id))
+    setRenewSuccess('')
+    try {
+      const res = await fetch('/api/renew-loan', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ prestamoId: prestamo.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al renovar')
+      await fetchPrestamos()
+      setRenewSuccess('¡Renovado! +14 días')
+      setTimeout(() => setRenewSuccess(''), 3000)
+    } catch (err) {
+      setReturnError(err instanceof Error ? err.message : 'Error al renovar')
+    } finally {
+      setRenewingId(null)
+    }
   }
 
   const handleConfirmReturn = async () => {
@@ -192,24 +244,45 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
                       <p className="text-xs text-slate-500 line-clamp-1 mb-2">{prestamo.libros.autores}</p>
 
                       <div className="mt-auto flex items-center justify-between">
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
-                          <Clock size={10} />
-                          <span>
-                            {new Date(prestamo.fecha_prestamo).toLocaleDateString('es', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </span>
+                        {(() => {
+                          const due = getDueDateStatus(prestamo.fecha_limite)
+                          return due.label ? (
+                            <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md ${due.className}`}>
+                              <Clock size={10} />
+                              <span>{due.label}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
+                              <Clock size={10} />
+                              <span>
+                                {new Date(prestamo.fecha_prestamo).toLocaleDateString('es', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                              </span>
+                            </div>
+                          )
+                        })()}
+                        <div className="flex gap-1 ml-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRenew(prestamo)}
+                            disabled={!!renewingId}
+                            className="h-7 px-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
+                          >
+                            {renewingId === String(prestamo.id) ? '...' : '+14d'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleReturnClick(prestamo)}
+                            disabled={returningIsbn === prestamo.libro_isbn}
+                            className="h-7 px-3 text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-700 rounded-lg"
+                          >
+                            Devolver
+                          </Button>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleReturnClick(prestamo)}
-                          disabled={returningIsbn === prestamo.libro_isbn}
-                          className="h-7 px-3 text-[10px] font-bold text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-700 rounded-lg ml-2"
-                        >
-                          Devolver
-                        </Button>
                       </div>
                     </div>
                   </div>
@@ -223,6 +296,16 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
           </div>
         </div>
       </div>
+
+      {/* Success Toast renovación */}
+      {renewSuccess && (
+        <div className="absolute bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-4">
+          <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-sm shadow-xl flex items-center gap-3">
+            <CheckCircle size={18} className="shrink-0 text-emerald-500" />
+            <p className="font-medium">{renewSuccess}</p>
+          </div>
+        </div>
+      )}
 
       {/* Error Toast & Modals */}
       {returnError && (

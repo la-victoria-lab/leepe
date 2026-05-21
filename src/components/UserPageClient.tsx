@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, BookOpen, ScanBarcode, Library } from 'lucide-react'
 import WelcomeScreen from './WelcomeScreen'
 import LendBookTab from './LendBookTab'
 import LogoutButton from './LogoutButton'
+import UserCatalogTab from './UserCatalogTab'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -13,7 +14,7 @@ type UserPageClientProps = {
   embedded?: boolean
 }
 
-type ViewMode = 'welcome' | 'lend'
+type ViewMode = 'welcome' | 'lend' | 'catalog'
 
 export default function UserPageClient({ userName, embedded = false }: UserPageClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('welcome')
@@ -96,16 +97,22 @@ export default function UserPageClient({ userName, embedded = false }: UserPageC
         </div>
       </header>
 
-      {/* Contenido Principal - Sin Padding Global */}
+      {/* Contenido Principal */}
       <div className="flex-1 flex flex-col min-h-0 relative z-10 w-full">
         {viewMode === 'lend' ? (
           <div className="flex-1 h-full w-full animate-in fade-in zoom-in-95 duration-300 bg-black">
             <LendBookTab onSuccess={() => setViewMode('welcome')} />
           </div>
+        ) : viewMode === 'catalog' ? (
+          <div className="flex-1 h-full w-full overflow-hidden flex flex-col pb-16">
+            <div className="px-4 pt-4 pb-1 shrink-0">
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">Catálogo</h2>
+              <p className="text-xs text-slate-400 font-medium">Busca y pide libros disponibles</p>
+            </div>
+            <UserCatalogTab onBorrow={() => setViewMode('welcome')} />
+          </div>
         ) : (
-          <div className="flex-1 h-full w-full overflow-y-auto no-scrollbar">
-            {' '}
-            {/* Padding interno solo para WelcomeScreen */}
+          <div className="flex-1 h-full w-full overflow-y-auto no-scrollbar pb-16">
             <WelcomeScreen
               userName={userName}
               onSelectLend={() => setViewMode('lend')}
@@ -114,6 +121,38 @@ export default function UserPageClient({ userName, embedded = false }: UserPageC
           </div>
         )}
       </div>
+
+      {/* Bottom Nav (solo cuando no estamos en modo cámara) */}
+      {viewMode !== 'lend' && !embedded && (
+        <nav className="absolute bottom-0 left-0 right-0 z-20 bg-white/90 backdrop-blur-md border-t border-slate-100 flex">
+          {[
+            { id: 'welcome' as ViewMode, icon: BookOpen, label: 'Mis libros' },
+            { id: 'lend' as ViewMode, icon: ScanBarcode, label: 'Escanear', highlight: true },
+            { id: 'catalog' as ViewMode, icon: Library, label: 'Catálogo' },
+          ].map(({ id, icon: Icon, label, highlight }) => (
+            <button
+              key={id}
+              onClick={() => setViewMode(id)}
+              className={cn(
+                'flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-colors',
+                highlight
+                  ? 'text-violet-600'
+                  : viewMode === id
+                  ? 'text-violet-600'
+                  : 'text-slate-400'
+              )}
+            >
+              <Icon size={20} strokeWidth={viewMode === id ? 2.5 : 1.8} />
+              <span className={cn(
+                'text-[10px] font-bold',
+                viewMode === id ? 'text-violet-600' : 'text-slate-400'
+              )}>
+                {label}
+              </span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   )
 }

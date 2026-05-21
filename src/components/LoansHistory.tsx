@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RefreshCw, CheckCircle2, Clock, BookOpen } from 'lucide-react'
+import { RefreshCw, CheckCircle2, Clock, BookOpen, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 type Prestamo = {
@@ -54,15 +54,26 @@ export default function LoansHistory() {
       {/* Action Bar (Aligned with other views) */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-black text-slate-800 tracking-tight hidden md:block">Historial de Préstamos</h2>
-        <Button
-          onClick={load}
-          variant="outline"
-          disabled={isLoading}
-          size="icon"
-          className="rounded-full h-10 w-10 ml-auto"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </Button>
+        <div className="flex items-center gap-2 ml-auto">
+          <Button
+            onClick={() => window.open('/api/admin/export-csv', '_blank')}
+            variant="outline"
+            size="sm"
+            className="rounded-full h-10 px-4 gap-2 text-slate-600 border-slate-200"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exportar CSV</span>
+          </Button>
+          <Button
+            onClick={load}
+            variant="outline"
+            disabled={isLoading}
+            size="icon"
+            className="rounded-full h-10 w-10"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       {error && (

@@ -66,20 +66,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if book is already lent
-    const { data: activePrestamo } = await auth.supabase
+    // Check available copies (total - active loans)
+    const { count: prestamosActivos } = await auth.supabase
       .from('prestamos')
-      .select('*')
+      .select('*', { count: 'exact', head: true })
       .eq('libro_isbn', isbn)
       .eq('devuelto', false)
-      .single()
 
-    if (activePrestamo) {
+    const copiasTotal = libro.copias_total ?? 1
+    const copiasDisponibles = copiasTotal - (prestamosActivos ?? 0)
+
+    if (copiasDisponibles <= 0) {
       return NextResponse.json(
-        { error: `Este libro ya está prestado a ${activePrestamo.persona}`, type: 'already_lent' },
+        {
+          error: `Todas las copias están prestadas (${copiasTotal}/${copiasTotal})`,
+          type: 'all_copies_lent',
+        },
         { status: 400 }
       )
     }
+
+    // Fecha límite: 14 días desde hoy
+    const fechaLimite = new Date()
+    fechaLimite.setDate(fechaLimite.getDate() + 14)
 
     // Create loan record
     const { data: prestamo, error: prestamoError } = await auth.supabase
@@ -87,6 +96,7 @@ export async function POST(request: NextRequest) {
       .insert({
         libro_isbn: isbn,
         persona: borrower,
+        fecha_limite: fechaLimite.toISOString(),
       })
       .select()
       .single()
