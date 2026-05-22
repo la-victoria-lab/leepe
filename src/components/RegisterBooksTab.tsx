@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2, MapPin, Hash } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2, MapPin, Hash, ScanLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import IsbnScanner from './IsbnScanner'
+import type { IsbnScannerRef } from './IsbnScanner'
 
 /** Intenta leer el código de barras de una imagen con ZBar WASM (client-side, gratis) */
 async function scanImageForISBN(file: File): Promise<string | null> {
@@ -40,7 +42,11 @@ export default function RegisterBooksTab() {
   const [espacios, setEspacios] = useState<Espacio[]>([])
   const [espacioId, setEspacioId] = useState<string>('')
   const [manualIsbn, setManualIsbn] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<'foto' | 'manual'>('foto')
+  const [activeTab, setActiveTab] = useState<'scan' | 'foto' | 'manual'>('scan')
+  const [scannerKey, setScannerKey] = useState(0)
+  const [scanResult, setScanResult] = useState<{ titulo: string; isbn: string } | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const scannerRef = useRef<IsbnScannerRef>(null)
   const [result, setResult] = useState<{
     registered?: Array<{ isbn: string; titulo: string }>
     duplicates?: Array<{ isbn: string; titulo?: string }>
@@ -62,6 +68,32 @@ export default function RegisterBooksTab() {
     setSelectedImages(files)
     setError('')
     setResult(null)
+  }
+
+  const handleIsbnDetected = async (isbn: string) => {
+    if (scanning) return
+    setScanning(true)
+    setScanResult(null)
+    setError('')
+    try {
+      const res = await fetch('/api/register-books/manual', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ isbn, espacio_id: espacioId || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      if (data.registered?.length) {
+        setScanResult({ titulo: data.registered[0].titulo, isbn })
+      } else if (data.duplicates?.length) {
+        setError(`Ya registrado: ${data.duplicates[0].titulo || isbn}`)
+      }
+      setScannerKey(k => k + 1) // reinicia el escáner para el siguiente libro
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar')
+    } finally {
+      setScanning(false)
+    }
   }
 
   const handleSubmitManual = async (e: React.FormEvent) => {
@@ -178,28 +210,89 @@ export default function RegisterBooksTab() {
     <div className="flex flex-col gap-8 pb-20 max-w-2xl mx-auto">
 
       {/* Tabs */}
-      <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+      <div className="flex gap-1.5 bg-slate-100 p-1 rounded-2xl">
         <button
           type="button"
-          onClick={() => { setActiveTab('foto'); setError(''); setResult(null) }}
+          onClick={() => { setActiveTab('scan'); setError(''); setResult(null); setScanResult(null) }}
           className={cn(
-            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all',
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
+            activeTab === 'scan' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <ScanLine size={14} /> Escanear
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('foto'); setError(''); setResult(null); setScanResult(null) }}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
             activeTab === 'foto' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
           )}
         >
-          <UploadCloud size={16} /> Foto / Imagen
+          <UploadCloud size={14} /> Foto
         </button>
         <button
           type="button"
-          onClick={() => { setActiveTab('manual'); setError(''); setResult(null) }}
+          onClick={() => { setActiveTab('manual'); setError(''); setResult(null); setScanResult(null) }}
           className={cn(
-            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all',
+            'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all',
             activeTab === 'manual' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
           )}
         >
-          <Hash size={16} /> ISBN Manual
+          <Hash size={14} /> Manual
         </button>
       </div>
+
+      {/* Escáner en vivo */}
+      {activeTab === 'scan' && (
+        <div className="flex flex-col gap-4">
+          {/* Espacio */}
+          {espacios.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-violet-500" /> Espacio físico
+              </label>
+              <select
+                value={espacioId}
+                onChange={e => setEspacioId(e.target.value)}
+                className="w-full h-11 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">Sin espacio asignado</option>
+                {espacios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Resultado del último scan */}
+          {scanResult && (
+            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-2xl animate-in fade-in slide-in-from-bottom-2">
+              <CheckCircle2 className="text-green-600 shrink-0" size={20} />
+              <div>
+                <p className="font-bold text-green-800 text-sm">{scanResult.titulo}</p>
+                <p className="text-xs text-green-600 font-mono">{scanResult.isbn}</p>
+              </div>
+            </div>
+          )}
+
+          {scanning && (
+            <div className="flex items-center justify-center gap-2 p-3 bg-violet-50 rounded-2xl text-violet-700 text-sm font-medium">
+              <Loader2 size={16} className="animate-spin" /> Registrando libro...
+            </div>
+          )}
+
+          <div className="rounded-2xl overflow-hidden">
+            <IsbnScanner
+              key={scannerKey}
+              ref={scannerRef}
+              isActive={activeTab === 'scan' && !scanning}
+              onDetected={handleIsbnDetected}
+            />
+          </div>
+          <p className="text-xs text-slate-400 text-center">
+            Apunta al código de barras de la contraportada — se registra automáticamente
+          </p>
+        </div>
+      )}
 
       {/* Manual ISBN form */}
       {activeTab === 'manual' && (
