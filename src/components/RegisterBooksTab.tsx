@@ -6,6 +6,29 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
+/** Intenta leer el código de barras de una imagen con ZBar WASM (client-side, gratis) */
+async function scanImageForISBN(file: File): Promise<string | null> {
+  try {
+    const { scanImageData } = await import('@undecaf/zbar-wasm')
+    const bitmap = await createImageBitmap(file)
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bitmap, 0, 0)
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const symbols = await scanImageData(imageData)
+    if (symbols.length > 0) {
+      const code = symbols[0].decode().trim()
+      return code || null
+    }
+  } catch {
+    // ZBar no disponible o falló — se usará Claude como fallback
+  }
+  return null
+}
+
 interface Espacio {
   id: string
   nombre: string
@@ -81,30 +104,68 @@ export default function RegisterBooksTab() {
     setResult(null)
 
     try {
-      const formData = new FormData()
-      selectedImages.forEach((image) => {
-        formData.append('images', image)
-      })
-      if (espacioId) formData.append('espacio_id', espacioId)
+      // 1. Intentar ZBar client-side en cada imagen primero
+      const zbarResults = await Promise.all(
+        selectedImages.map(async (img) => ({
+          file: img,
+          isbn: await scanImageForISBN(img),
+        }))
+      )
 
-      const response = await fetch('/api/register-books', {
-        method: 'POST',
-        body: formData,
-      })
+      const zbarFound = zbarResults.filter(r => r.isbn)
+      const zbarMissed = zbarResults.filter(r => !r.isbn)
 
-      if (!response.ok) {
-        let errorMessage = 'Error al registrar libros'
+      // 2. Para los que ZBar encontró ISBN, registrar directamente
+      let zbarRegistered: Array<{ isbn: string; titulo: string }> = []
+      let zbarDuplicates: Array<{ isbn: string; titulo?: string }> = []
+      const zbarErrors: Array<{ isbn: string }> = []
+
+      for (const { isbn } of zbarFound) {
         try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
+          const res = await fetch('/api/register-books/manual', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ isbn, espacio_id: espacioId || null }),
+          })
+          const data = await res.json()
+          if (data.registered?.length) zbarRegistered = [...zbarRegistered, ...data.registered]
+          if (data.duplicates?.length) zbarDuplicates = [...zbarDuplicates, ...data.duplicates]
         } catch {
-          errorMessage = response.statusText || `Error ${response.status}`
+          if (isbn) zbarErrors.push({ isbn })
         }
-        throw new Error(errorMessage)
       }
 
-      const data = await response.json()
-      setResult(data)
+      // 3. Para los que ZBar falló, enviar a Claude como fallback
+      let claudeResult = { registered: [], duplicates: [], notFound: [], errors: [] } as {
+        registered: Array<{ isbn: string; titulo: string }>
+        duplicates: Array<{ isbn: string; titulo?: string }>
+        notFound: Array<{ imageName: string }>
+        errors: Array<{ imageName: string }>
+      }
+
+      if (zbarMissed.length > 0) {
+        const formData = new FormData()
+        zbarMissed.forEach(({ file }) => formData.append('images', file))
+        if (espacioId) formData.append('espacio_id', espacioId)
+
+        const response = await fetch('/api/register-books', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (response.ok) {
+          claudeResult = await response.json()
+        }
+      }
+
+      // 4. Combinar resultados de ZBar + Claude
+      setResult({
+        registered: [...zbarRegistered, ...(claudeResult.registered || [])],
+        duplicates: [...zbarDuplicates, ...(claudeResult.duplicates || [])],
+        notFound: claudeResult.notFound || [],
+        errors: claudeResult.errors || [],
+        googleErrors: zbarErrors.map(e => ({ isbn: e.isbn })),
+      })
       setSelectedImages([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
