@@ -55,6 +55,9 @@ export default function RegisterBooksTab() {
     errors?: Array<{ imageName: string }>
   } | null>(null)
   const [error, setError] = useState<string>('')
+  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null)
+  const [tituloManual, setTituloManual] = useState('')
+  const [autoresManual, setAutoresManual] = useState('')
 
   useEffect(() => {
     fetch('/api/admin/espacios')
@@ -70,25 +73,40 @@ export default function RegisterBooksTab() {
     setResult(null)
   }
 
-  const handleIsbnDetected = async (isbn: string) => {
-    if (scanning) return
+  const registerIsbn = async (isbn: string, tituloOverride?: string, autoresOverride?: string) => {
     setScanning(true)
     setScanResult(null)
     setError('')
+    setNotFoundIsbn(null)
     try {
       const res = await fetch('/api/register-books/manual', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ isbn, espacio_id: espacioId || null }),
+        body: JSON.stringify({
+          isbn,
+          espacio_id: espacioId || null,
+          titulo_manual: tituloOverride || undefined,
+          autores_manual: autoresOverride || undefined,
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (res.status === 404 && data.error === 'not_found_in_apis') {
+        // Libro no encontrado en ninguna API — pedir título manual
+        setNotFoundIsbn(isbn)
+        setTituloManual('')
+        setAutoresManual('')
+        return
+      }
+      if (!res.ok) throw new Error(data.message || data.error)
       if (data.registered?.length) {
         setScanResult({ titulo: data.registered[0].titulo, isbn })
+        setTituloManual('')
+        setAutoresManual('')
+        setScannerKey(k => k + 1)
       } else if (data.duplicates?.length) {
         setError(`Ya registrado: ${data.duplicates[0].titulo || isbn}`)
+        setScannerKey(k => k + 1)
       }
-      setScannerKey(k => k + 1) // reinicia el escáner para el siguiente libro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar')
     } finally {
@@ -96,31 +114,18 @@ export default function RegisterBooksTab() {
     }
   }
 
+  const handleIsbnDetected = (isbn: string) => {
+    if (scanning) return
+    registerIsbn(isbn)
+  }
+
   const handleSubmitManual = async (e: React.FormEvent) => {
     e.preventDefault()
     const isbn = manualIsbn.trim().replace(/[-\s]/g, '')
     if (!isbn) { setError('Ingresa un ISBN'); return }
     if (!/^\d{10}(\d{3})?$/.test(isbn)) { setError('ISBN debe tener 10 o 13 dígitos'); return }
-
-    setLoading(true)
-    setError('')
-    setResult(null)
-
-    try {
-      const res = await fetch('/api/register-books/manual', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ isbn, espacio_id: espacioId || null }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setResult(data)
-      setManualIsbn('')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido')
-    } finally {
-      setLoading(false)
-    }
+    await registerIsbn(isbn)
+    setManualIsbn('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -288,6 +293,45 @@ export default function RegisterBooksTab() {
               onDetected={handleIsbnDetected}
             />
           </div>
+          {/* Formulario cuando no se encuentra en APIs */}
+          {notFoundIsbn && (
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+              <p className="text-sm font-bold text-amber-800">
+                ISBN <span className="font-mono">{notFoundIsbn}</span> no encontrado en Google Books ni Open Library.
+              </p>
+              <p className="text-xs text-amber-600">Ingresa el título para registrarlo manualmente:</p>
+              <Input
+                placeholder="Título del libro *"
+                value={tituloManual}
+                onChange={e => setTituloManual(e.target.value)}
+                className="rounded-xl"
+              />
+              <Input
+                placeholder="Autor (opcional)"
+                value={autoresManual}
+                onChange={e => setAutoresManual(e.target.value)}
+                className="rounded-xl"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => registerIsbn(notFoundIsbn, tituloManual, autoresManual)}
+                  disabled={!tituloManual.trim() || scanning}
+                  className="flex-1 rounded-xl bg-slate-900 text-white"
+                >
+                  {scanning ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                  Registrar
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => { setNotFoundIsbn(null); setScannerKey(k => k + 1) }}
+                  className="rounded-xl text-slate-500"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          )}
+
           <p className="text-xs text-slate-400 text-center">
             Apunta al código de barras de la contraportada — se registra automáticamente
           </p>
