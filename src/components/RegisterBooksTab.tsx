@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2, MapPin } from 'lucide-react'
+import { UploadCloud, CheckCircle2, AlertTriangle, XCircle, FileImage, Loader2, MapPin, Hash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 interface Espacio {
@@ -15,6 +16,8 @@ export default function RegisterBooksTab() {
   const [loading, setLoading] = useState(false)
   const [espacios, setEspacios] = useState<Espacio[]>([])
   const [espacioId, setEspacioId] = useState<string>('')
+  const [manualIsbn, setManualIsbn] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<'foto' | 'manual'>('foto')
   const [result, setResult] = useState<{
     registered?: Array<{ isbn: string; titulo: string }>
     duplicates?: Array<{ isbn: string; titulo?: string }>
@@ -36,6 +39,33 @@ export default function RegisterBooksTab() {
     setSelectedImages(files)
     setError('')
     setResult(null)
+  }
+
+  const handleSubmitManual = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const isbn = manualIsbn.trim().replace(/[-\s]/g, '')
+    if (!isbn) { setError('Ingresa un ISBN'); return }
+    if (!/^\d{10}(\d{3})?$/.test(isbn)) { setError('ISBN debe tener 10 o 13 dígitos'); return }
+
+    setLoading(true)
+    setError('')
+    setResult(null)
+
+    try {
+      const res = await fetch('/api/register-books/manual', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ isbn, espacio_id: espacioId || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setResult(data)
+      setManualIsbn('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,8 +115,77 @@ export default function RegisterBooksTab() {
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-2xl mx-auto">
+
+      {/* Tabs */}
+      <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+        <button
+          type="button"
+          onClick={() => { setActiveTab('foto'); setError(''); setResult(null) }}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all',
+            activeTab === 'foto' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <UploadCloud size={16} /> Foto / Imagen
+        </button>
+        <button
+          type="button"
+          onClick={() => { setActiveTab('manual'); setError(''); setResult(null) }}
+          className={cn(
+            'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all',
+            activeTab === 'manual' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'
+          )}
+        >
+          <Hash size={16} /> ISBN Manual
+        </button>
+      </div>
+
+      {/* Manual ISBN form */}
+      {activeTab === 'manual' && (
+        <form onSubmit={handleSubmitManual} className="flex flex-col gap-4">
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-3">
+            <p className="text-sm text-slate-500 font-medium">
+              Ingresa el ISBN de la contratapa del libro (10 o 13 dígitos)
+            </p>
+            <Input
+              placeholder="Ej: 9786123456789"
+              value={manualIsbn}
+              onChange={e => setManualIsbn(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSubmitManual(e as unknown as React.FormEvent)}
+              className="rounded-xl text-lg font-mono tracking-wider h-12"
+              inputMode="numeric"
+            />
+          </div>
+
+          {/* Espacio */}
+          {espacios.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-violet-500" /> Espacio físico
+              </label>
+              <select
+                value={espacioId}
+                onChange={e => setEspacioId(e.target.value)}
+                className="w-full h-12 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="">Sin espacio asignado</option>
+                {espacios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            disabled={!manualIsbn.trim() || loading}
+            className="h-14 rounded-2xl text-lg font-bold bg-slate-900 text-white hover:bg-black"
+          >
+            {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Buscando...</> : 'Registrar libro'}
+          </Button>
+        </form>
+      )}
+
       {/* Upload Zone */}
-      <form
+      {activeTab === 'foto' && <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-6"
       >
@@ -168,7 +267,7 @@ export default function RegisterBooksTab() {
             'Iniciar Carga Masiva'
           )}
         </Button>
-      </form>
+      </form>}
 
       {/* Error Message */}
       {error && (
