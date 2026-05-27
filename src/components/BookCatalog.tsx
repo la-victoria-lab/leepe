@@ -97,7 +97,7 @@ export default function BookCatalog() {
     const espacioIdVal = formData.get('espacio_id') as string
     const copiasVal = formData.get('copias_total') as string
     const data = {
-      isbn: formData.get('isbn'),
+      isbn: editingBook?.isbn || formData.get('isbn'),
       titulo: formData.get('titulo'),
       autores: formData.get('autores'),
       descripcion: formData.get('descripcion'),
