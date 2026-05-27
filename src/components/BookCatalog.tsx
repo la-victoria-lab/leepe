@@ -17,6 +17,7 @@ interface Book {
   is_active: boolean
   espacio_id: string | null
   espacio_nombre?: string | null
+  copias_total?: number
 }
 
 interface Espacio {
@@ -94,6 +95,7 @@ export default function BookCatalog() {
 
   const handleSave = async (formData: FormData) => {
     const espacioIdVal = formData.get('espacio_id') as string
+    const copiasVal = formData.get('copias_total') as string
     const data = {
       isbn: formData.get('isbn'),
       titulo: formData.get('titulo'),
@@ -101,6 +103,7 @@ export default function BookCatalog() {
       descripcion: formData.get('descripcion'),
       thumbnail: formData.get('thumbnail'),
       espacio_id: espacioIdVal || null,
+      copias_total: copiasVal ? parseInt(copiasVal, 10) : 1,
     }
 
     try {
@@ -358,6 +361,16 @@ export default function BookCatalog() {
                 </select>
               </div>
             )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Copias disponibles *</label>
+              <Input
+                type="number"
+                name="copias_total"
+                defaultValue={editingBook?.copias_total || 1}
+                min="1"
+                required
+              />
+            </div>
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
