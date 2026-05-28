@@ -58,6 +58,12 @@ export default function RegisterBooksTab() {
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null)
   const [tituloManual, setTituloManual] = useState('')
   const [autoresManual, setAutoresManual] = useState('')
+  const [backfillLoading, setBackfillLoading] = useState(false)
+  const [backfillResult, setBackfillResult] = useState<{
+    processed: number
+    found: number
+    notFound: number
+  } | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/espacios')
@@ -71,6 +77,28 @@ export default function RegisterBooksTab() {
     setSelectedImages(files)
     setError('')
     setResult(null)
+  }
+
+  const handleBackfillCovers = async () => {
+    setBackfillLoading(true)
+    setBackfillResult(null)
+    try {
+      const res = await fetch('/api/books/fetch-missing-covers', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar portadas')
+      setBackfillResult({
+        processed: data.processed,
+        found: data.found,
+        notFound: data.notFound,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+    } finally {
+      setBackfillLoading(false)
+    }
   }
 
   const registerIsbn = async (isbn: string, tituloOverride?: string, autoresOverride?: string) => {
@@ -213,6 +241,37 @@ export default function RegisterBooksTab() {
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-2xl mx-auto">
+
+      {/* Botón de actualizar portadas faltantes */}
+      <div className="flex flex-col gap-3">
+        <Button
+          onClick={handleBackfillCovers}
+          disabled={backfillLoading}
+          variant="outline"
+          className="rounded-2xl border-violet-200 hover:bg-violet-50"
+        >
+          {backfillLoading ? (
+            <>
+              <Loader2 size={16} className="animate-spin mr-2" />
+              Buscando portadas...
+            </>
+          ) : (
+            <>
+              📚 Actualizar portadas faltantes
+            </>
+          )}
+        </Button>
+        {backfillResult && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm">
+            <p className="font-semibold text-blue-900 mb-2">✅ Actualización completada</p>
+            <ul className="text-blue-800 text-xs space-y-1">
+              <li>• Procesados: {backfillResult.processed} libros</li>
+              <li>• Portadas encontradas: {backfillResult.found}</li>
+              <li>• No encontradas: {backfillResult.notFound}</li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1.5 bg-slate-100 p-1 rounded-2xl">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Search, BookOpen, CheckCircle, XCircle } from 'lucide-react'
+import { Search, BookOpen, CheckCircle, XCircle, List, Grid3x3 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LOAN_CONFIG } from '@/lib/loan-config'
 
@@ -26,6 +26,7 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
   const [borrowingIsbn, setBorrowingIsbn] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
   const fetchLibros = useCallback(async (q: string) => {
     setLoading(true)
@@ -86,6 +87,28 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
         </div>
       </div>
 
+      {/* View Mode Toggle */}
+      <div className="px-4 pb-2 shrink-0 flex gap-2">
+        <Button
+          variant={viewMode === 'list' ? 'default' : 'outline'}
+          onClick={() => setViewMode('list')}
+          size="sm"
+          className="flex-1 rounded-xl"
+        >
+          <List size={16} className="mr-1" />
+          Lista
+        </Button>
+        <Button
+          variant={viewMode === 'grid' ? 'default' : 'outline'}
+          onClick={() => setViewMode('grid')}
+          size="sm"
+          className="flex-1 rounded-xl"
+        >
+          <Grid3x3 size={16} className="mr-1" />
+          Cuadrícula
+        </Button>
+      </div>
+
       {/* Toast */}
       {(successMsg || errorMsg) && (
         <div className={`mx-4 mb-3 p-3 rounded-xl text-sm font-medium flex items-center gap-2 ${
@@ -96,20 +119,29 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
         </div>
       )}
 
-      {/* Lista */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-8">
         {loading ? (
-          <div className="space-y-3">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
-            ))}
-          </div>
+          viewMode === 'list' ? (
+            <div className="space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-slate-100 rounded-2xl animate-pulse aspect-[2/3]" />
+              ))}
+            </div>
+          )
         ) : libros.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
             <BookOpen size={40} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">Sin resultados</p>
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
+          // LIST VIEW
           <div className="space-y-2">
             {libros.map((libro) => (
               <div
@@ -153,6 +185,58 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
                         {borrowingIsbn === libro.isbn ? '...' : 'Pedir'}
                       </Button>
                     )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // GRID VIEW
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {libros.map((libro) => (
+              <div
+                key={libro.isbn}
+                className="border border-slate-200 rounded-2xl overflow-hidden bg-white hover:shadow-lg transition-shadow flex flex-col"
+              >
+                {/* Cover Image */}
+                <div className="aspect-[2/3] w-full bg-slate-100 overflow-hidden">
+                  {libro.thumbnail ? (
+                    <img src={libro.thumbnail} alt={libro.titulo} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={32} className="text-slate-300" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Book Info */}
+                <div className="p-3 flex flex-col gap-2 flex-1">
+                  <div>
+                    <h3 className="font-bold text-sm line-clamp-2 text-slate-800">{libro.titulo}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-1">
+                      {Array.isArray(libro.autores) ? libro.autores.join(', ') : libro.autores || '—'}
+                    </p>
+                  </div>
+
+                  <div className="flex-1" />
+
+                  <div className="flex flex-col gap-2">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg text-center ${
+                      libro.disponible
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-red-50 text-red-600'
+                    }`}>
+                      {libro.disponible
+                        ? `${libro.copias_disponibles}/${libro.copias_total}`
+                        : 'No disponible'}
+                    </span>
+                    <Button
+                      onClick={() => handleBorrow(libro.isbn)}
+                      disabled={!libro.disponible || borrowingIsbn === libro.isbn}
+                      className="w-full h-8 text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white rounded-lg"
+                    >
+                      {borrowingIsbn === libro.isbn ? '...' : 'Pedir'}
+                    </Button>
                   </div>
                 </div>
               </div>
