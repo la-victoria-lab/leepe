@@ -1,7 +1,21 @@
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { LOAN_CONFIG } from './loan-config'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Crear transporte de Gmail
+const createTransporter = () => {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASSWORD) {
+    console.error('Missing GMAIL_USER or GMAIL_PASSWORD environment variables')
+    return null
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASSWORD,
+    },
+  })
+}
 
 interface BookBorrowedData {
   bookTitle: string
@@ -34,6 +48,12 @@ interface RenewalConfirmationData {
  */
 export async function sendBookBorrowedNotification(data: BookBorrowedData) {
   try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
     const formattedDate = data.dueDate.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -42,32 +62,29 @@ export async function sendBookBorrowedNotification(data: BookBorrowedData) {
     })
 
     const html = `
-      <h2>Nueva Solicitud de Préstamo</h2>
-      <p><strong>Libro:</strong> ${data.bookTitle}</p>
-      ${data.bookAuthor ? `<p><strong>Autor:</strong> ${data.bookAuthor}</p>` : ''}
-      <p><strong>Solicitante:</strong> ${data.borrowerName}</p>
-      <p><strong>Email:</strong> ${data.borrowerEmail}</p>
-      <p><strong>Fecha de Vencimiento:</strong> ${formattedDate}</p>
-      <hr />
-      <p style="color: #666; font-size: 12px;">
-        Este es un mensaje automático del sistema LEEPE.
-        No responder a este email.
-      </p>
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #2c3e50;">Nueva Solicitud de Préstamo</h2>
+        <p><strong>📖 Libro:</strong> ${data.bookTitle}</p>
+        ${data.bookAuthor ? `<p><strong>✍️ Autor:</strong> ${data.bookAuthor}</p>` : ''}
+        <p><strong>👤 Solicitante:</strong> ${data.borrowerName}</p>
+        <p><strong>📧 Email:</strong> ${data.borrowerEmail}</p>
+        <p><strong>📅 Fecha de Vencimiento:</strong> ${formattedDate}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          No responder a este email.
+        </p>
+      </div>
     `
 
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@leepe.lavictoria.pe',
-      to: LOAN_CONFIG.ADMIN_EMAILS,
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: LOAN_CONFIG.ADMIN_EMAILS.join(','),
       subject: `[LEEPE] Nueva solicitud: ${data.bookTitle}`,
       html,
     })
 
-    if (response.error) {
-      console.error('Error sending book borrowed notification:', response.error)
-      return false
-    }
-
-    console.log('Book borrowed notification sent:', response.data?.id)
+    console.log('Book borrowed notification sent to:', LOAN_CONFIG.ADMIN_EMAILS)
     return true
   } catch (error) {
     console.error('Exception in sendBookBorrowedNotification:', error)
@@ -80,6 +97,12 @@ export async function sendBookBorrowedNotification(data: BookBorrowedData) {
  */
 export async function sendRenewalReminderEmail(data: RenewalReminderData) {
   try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
     const formattedDate = data.dueDate.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -88,31 +111,28 @@ export async function sendRenewalReminderEmail(data: RenewalReminderData) {
     })
 
     const html = `
-      <h2>Recordatorio: Tu Préstamo Vence Pronto</h2>
-      <p>Hola <strong>${data.borrowerName}</strong>,</p>
-      <p>Tu préstamo del libro <strong>"${data.bookTitle}"</strong> vence en <strong>${data.daysUntilExpiry} día${data.daysUntilExpiry === 1 ? '' : 's'}</strong>.</p>
-      <p><strong>Fecha de Vencimiento:</strong> ${formattedDate}</p>
-      <p>Puedes renovar tu préstamo por 15 días más a través del portal LEEPE.</p>
-      <hr />
-      <p style="color: #666; font-size: 12px;">
-        Este es un mensaje automático del sistema LEEPE.
-        Si tienes preguntas, contacta a bizops@lavictoria.pe
-      </p>
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #e74c3c;">⏰ Recordatorio: Tu Préstamo Vence Pronto</h2>
+        <p>Hola <strong>${data.borrowerName}</strong>,</p>
+        <p>Tu préstamo del libro <strong>"${data.bookTitle}"</strong> vence en <strong style="color: #e74c3c;">${data.daysUntilExpiry} día${data.daysUntilExpiry === 1 ? '' : 's'}</strong>.</p>
+        <p><strong>📅 Fecha de Vencimiento:</strong> ${formattedDate}</p>
+        <p>Puedes renovar tu préstamo por 15 días más a través del portal LEEPE.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          Si tienes preguntas, contacta a bizops@lavictoria.pe
+        </p>
+      </div>
     `
 
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@leepe.lavictoria.pe',
-      to: [data.borrowerEmail],
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: data.borrowerEmail,
       subject: `[LEEPE] Recordatorio: Tu préstamo vence en ${data.daysUntilExpiry} día${data.daysUntilExpiry === 1 ? '' : 's'}`,
       html,
     })
 
-    if (response.error) {
-      console.error('Error sending renewal reminder:', response.error)
-      return false
-    }
-
-    console.log('Renewal reminder sent:', response.data?.id)
+    console.log('Renewal reminder sent to:', data.borrowerEmail)
     return true
   } catch (error) {
     console.error('Exception in sendRenewalReminderEmail:', error)
@@ -125,6 +145,12 @@ export async function sendRenewalReminderEmail(data: RenewalReminderData) {
  */
 export async function sendRenewalConfirmation(data: RenewalConfirmationData) {
   try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
     const formattedDate = data.newDueDate.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -139,35 +165,32 @@ export async function sendRenewalConfirmation(data: RenewalConfirmationData) {
         : 'Ya no puedes renovar más este préstamo.'
 
     const html = `
-      <h2>Préstamo Renovado</h2>
-      <p>Hola <strong>${data.borrowerName}</strong>,</p>
-      <p>Tu préstamo del libro <strong>"${data.bookTitle}"</strong> ha sido renovado exitosamente.</p>
-      <p><strong>Nueva Fecha de Vencimiento:</strong> ${formattedDate}</p>
-      <p><strong>Renovaciones Utilizadas:</strong> ${data.renewalCount}/${data.maxRenewals}</p>
-      <p>${renewalStatus}</p>
-      <hr />
-      <p style="color: #666; font-size: 12px;">
-        Este es un mensaje automático del sistema LEEPE.
-        Si tienes preguntas, contacta a bizops@lavictoria.pe
-      </p>
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #27ae60;">✅ Préstamo Renovado</h2>
+        <p>Hola <strong>${data.borrowerName}</strong>,</p>
+        <p>Tu préstamo del libro <strong>"${data.bookTitle}"</strong> ha sido renovado exitosamente.</p>
+        <p><strong>📅 Nueva Fecha de Vencimiento:</strong> ${formattedDate}</p>
+        <p><strong>🔄 Renovaciones Utilizadas:</strong> ${data.renewalCount}/${data.maxRenewals}</p>
+        <p>${renewalStatus}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          Si tienes preguntas, contacta a bizops@lavictoria.pe
+        </p>
+      </div>
     `
 
     // Enviar al usuario y a los admins
     const emailsToSend = [data.borrowerEmail, ...LOAN_CONFIG.ADMIN_EMAILS]
 
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'noreply@leepe.lavictoria.pe',
-      to: emailsToSend,
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: emailsToSend.join(','),
       subject: `[LEEPE] Préstamo renovado: ${data.bookTitle}`,
       html,
     })
 
-    if (response.error) {
-      console.error('Error sending renewal confirmation:', response.error)
-      return false
-    }
-
-    console.log('Renewal confirmation sent:', response.data?.id)
+    console.log('Renewal confirmation sent to:', emailsToSend)
     return true
   } catch (error) {
     console.error('Exception in sendRenewalConfirmation:', error)
