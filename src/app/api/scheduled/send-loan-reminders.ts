@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdminClient } from '@/lib/supabase-admin'
-import { LOAN_CONFIG, daysUntilDue } from '@/lib/loan-config'
+import { daysUntilDue } from '@/lib/loan-config'
 import * as emailService from '@/lib/email-service'
 
 /**
