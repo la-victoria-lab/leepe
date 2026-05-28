@@ -118,6 +118,8 @@ export default function RegisterBooksTab() {
         }),
       })
       const data = await res.json()
+      console.log('API response:', { status: res.status, data })
+
       if (res.status === 404 && data.error === 'not_found_in_apis') {
         // Libro no encontrado en ninguna API — pedir título manual
         setNotFoundIsbn(isbn)
@@ -125,7 +127,10 @@ export default function RegisterBooksTab() {
         setAutoresManual('')
         return
       }
-      if (!res.ok) throw new Error(data.message || data.error)
+      if (!res.ok) {
+        const errorMsg = data.message || data.error || 'Error desconocido en la API'
+        throw new Error(errorMsg)
+      }
       if (data.registered?.length) {
         setScanResult({ titulo: data.registered[0].titulo, isbn })
         setTituloManual('')
@@ -136,7 +141,9 @@ export default function RegisterBooksTab() {
         setScannerKey(k => k + 1)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al registrar')
+      const errMsg = err instanceof Error ? err.message : 'Error al registrar'
+      console.error('Error registering ISBN:', err)
+      setError(errMsg)
     } finally {
       setScanning(false)
     }
@@ -399,46 +406,88 @@ export default function RegisterBooksTab() {
 
       {/* Manual ISBN form */}
       {activeTab === 'manual' && (
-        <form onSubmit={handleSubmitManual} className="flex flex-col gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-3">
-            <p className="text-sm text-slate-500 font-medium">
-              Ingresa el ISBN de la contratapa del libro (10 o 13 dígitos)
-            </p>
-            <Input
-              placeholder="Ej: 9786123456789"
-              value={manualIsbn}
-              onChange={e => setManualIsbn(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmitManual(e as unknown as React.FormEvent)}
-              className="rounded-xl text-lg font-mono tracking-wider h-12"
-              inputMode="numeric"
-            />
-          </div>
+        <div className="flex flex-col gap-4">
+          {/* Si no hay ISBN no encontrado, mostrar formulario de entrada */}
+          {!notFoundIsbn ? (
+            <form onSubmit={handleSubmitManual} className="flex flex-col gap-4">
+              <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-3">
+                <p className="text-sm text-slate-500 font-medium">
+                  Ingresa el ISBN de la contratapa del libro (10 o 13 dígitos)
+                </p>
+                <Input
+                  placeholder="Ej: 9786123456789"
+                  value={manualIsbn}
+                  onChange={e => setManualIsbn(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmitManual(e as unknown as React.FormEvent)}
+                  className="rounded-xl text-lg font-mono tracking-wider h-12"
+                  inputMode="numeric"
+                />
+              </div>
 
-          {/* Espacio */}
-          {espacios.length > 0 && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                <MapPin className="h-4 w-4 text-violet-500" /> Espacio físico
-              </label>
-              <select
-                value={espacioId}
-                onChange={e => setEspacioId(e.target.value)}
-                className="w-full h-12 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              {/* Espacio */}
+              {espacios.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-violet-500" /> Espacio físico
+                  </label>
+                  <select
+                    value={espacioId}
+                    onChange={e => setEspacioId(e.target.value)}
+                    className="w-full h-12 rounded-2xl border border-stone-200 bg-white px-4 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  >
+                    <option value="">Sin espacio asignado</option>
+                    {espacios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={!manualIsbn.trim() || scanning}
+                className="h-14 rounded-2xl text-lg font-bold bg-slate-900 text-white hover:bg-black"
               >
-                <option value="">Sin espacio asignado</option>
-                {espacios.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-              </select>
+                {scanning ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Buscando...</> : 'Registrar libro'}
+              </Button>
+            </form>
+          ) : (
+            /* ISBN no encontrado - mostrar formulario para ingresar título */
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+              <p className="text-sm font-bold text-amber-800">
+                ISBN <span className="font-mono">{notFoundIsbn}</span> no encontrado en Google Books ni Open Library.
+              </p>
+              <p className="text-xs text-amber-600">Ingresa el título para registrarlo manualmente:</p>
+              <Input
+                placeholder="Título del libro *"
+                value={tituloManual}
+                onChange={e => setTituloManual(e.target.value)}
+                className="rounded-xl"
+              />
+              <Input
+                placeholder="Autor (opcional)"
+                value={autoresManual}
+                onChange={e => setAutoresManual(e.target.value)}
+                className="rounded-xl"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => registerIsbn(notFoundIsbn, tituloManual, autoresManual)}
+                  disabled={!tituloManual.trim() || scanning}
+                  className="flex-1 rounded-xl bg-slate-900 text-white"
+                >
+                  {scanning ? <Loader2 size={14} className="animate-spin mr-1" /> : null}
+                  Registrar
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => { setNotFoundIsbn(null); setManualIsbn('') }}
+                  className="rounded-xl text-slate-500"
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
           )}
-
-          <Button
-            type="submit"
-            disabled={!manualIsbn.trim() || loading}
-            className="h-14 rounded-2xl text-lg font-bold bg-slate-900 text-white hover:bg-black"
-          >
-            {loading ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Buscando...</> : 'Registrar libro'}
-          </Button>
-        </form>
+        </div>
       )}
 
       {/* Upload Zone */}
