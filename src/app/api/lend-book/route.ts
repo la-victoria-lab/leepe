@@ -119,13 +119,14 @@ export async function POST(request: NextRequest) {
 
     // Mark email as sent in database
     if (emailSent) {
-      await auth.supabase
+      const { error: updateError } = await auth.supabase
         .from('prestamos')
         .update({ email_borrowed_sent: true })
         .eq('id', prestamo.id)
-        .catch((err) => {
-          apiLogger.warn({ err }, 'Failed to mark email as sent')
-        })
+
+      if (updateError) {
+        apiLogger.warn({ err: updateError }, 'Failed to mark email as sent')
+      }
     }
 
     apiLogger.info(
