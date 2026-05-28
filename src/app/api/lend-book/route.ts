@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     apiLogger.info(
       { isbn, borrower, prestamoId: prestamo.id, emailSent },
-      'Book lent successfully'
+      'Book lent successfully - email notification sent'
     )
 
     return NextResponse.json({
