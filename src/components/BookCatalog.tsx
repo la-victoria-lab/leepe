@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Plus, Trash2, BookIcon, ChevronLeft, ChevronRight, Search, Loader2, MapPin } from 'lucide-react'
+import { Pencil, Plus, Trash2, BookIcon, ChevronLeft, ChevronRight, Search, Loader2, MapPin, List, Grid3x3 } from 'lucide-react'
 
 interface Book {
   isbn: string
@@ -32,6 +32,7 @@ export default function BookCatalog() {
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState<{ last_page?: number; total?: number }>({})
   const [espacios, setEspacios] = useState<Espacio[]>([])
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -149,6 +150,28 @@ export default function BookCatalog() {
             />
           </form>
 
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 bg-white rounded-xl border border-stone-200 p-1">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('list')}
+              className="h-8 w-8 md:h-10 md:w-10 rounded-lg"
+              title="Vista de lista"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="icon"
+              onClick={() => setViewMode('grid')}
+              className="h-8 w-8 md:h-10 md:w-10 rounded-lg"
+              title="Vista de cuadrícula"
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </Button>
+          </div>
+
           {/* Pagination Controls - Always Visible */}
           <div className="flex items-center gap-1 bg-white rounded-xl border border-stone-200 p-1">
             <Button
@@ -196,7 +219,7 @@ export default function BookCatalog() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          CONTENT: Book Grid (Scrollable)
+          CONTENT: Book Grid/List (Scrollable)
       ═══════════════════════════════════════════════════════════════════ */}
       <div className="flex-1 overflow-y-auto -mx-4 px-4 md:-mx-0 md:px-0 pb-24 md:pb-8">
         {loading ? (
@@ -214,7 +237,7 @@ export default function BookCatalog() {
               <p className="text-sm mt-1">Intenta con otra búsqueda</p>
             </div>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
             {books.map((book) => (
               <Card
@@ -273,6 +296,58 @@ export default function BookCatalog() {
                   )}
                 </CardContent>
               </Card>
+            ))}
+          </div>
+        ) : (
+          // LIST VIEW
+          <div className="space-y-2">
+            {books.map((book) => (
+              <div
+                key={book.isbn}
+                className="bg-white border border-stone-200 rounded-lg p-4 flex gap-4 items-center hover:shadow-md transition-shadow group"
+              >
+                {/* Small Thumbnail */}
+                <div className="w-10 h-14 rounded-lg overflow-hidden bg-stone-100 shrink-0 flex-shrink-0">
+                  {book.thumbnail ? (
+                    <img src={book.thumbnail} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookIcon size={16} className="text-stone-300" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Book Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm text-stone-800 line-clamp-1">{book.titulo}</h3>
+                  <p className="text-xs text-stone-500 line-clamp-1">{book.autores || 'Sin autor'}</p>
+                  <p className="text-[11px] text-stone-400 font-mono mt-1">{book.isbn}</p>
+                  {book.espacio_nombre && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <MapPin className="h-3 w-3 text-amber-500" />
+                      <span className="text-[10px] text-amber-600 font-medium">{book.espacio_nombre}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                  <Button
+                    size="icon"
+                    onClick={() => handleEdit(book)}
+                    className="h-8 w-8 rounded-lg bg-white hover:bg-violet-50 text-stone-600 hover:text-violet-600 shadow-sm border border-stone-200/50"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    onClick={() => handleDelete(book.isbn)}
+                    className="h-8 w-8 rounded-lg bg-white hover:bg-red-50 text-stone-600 hover:text-red-500 shadow-sm border border-stone-200/50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}
