@@ -4,6 +4,8 @@ import { extractISBNFromImage } from '@/lib/isbn-extractor'
 import { requireCompanyUser } from '@/lib/api-auth'
 import { IsbnSchema, validateOrError } from '@/lib/validations'
 import { apiLogger } from '@/lib/logger'
+import { LOAN_CONFIG } from '@/lib/loan-config'
+import * as emailService from '@/lib/email-service'
 
 function getBorrowerLabel(email: string, fullName: string | undefined | null) {
   const normalizedEmail = email.trim().toLowerCase()
@@ -86,9 +88,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Fecha límite: 14 días desde hoy
+    // Fecha límite: 30 días desde hoy (1 mes)
     const fechaLimite = new Date()
-    fechaLimite.setDate(fechaLimite.getDate() + 14)
+    fechaLimite.setDate(fechaLimite.getDate() + LOAN_CONFIG.INITIAL_DAYS)
 
     // Create loan record
     const { data: prestamo, error: prestamoError } = await auth.supabase
@@ -106,7 +108,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al registrar el préstamo' }, { status: 500 })
     }
 
-    apiLogger.info({ isbn, borrower, prestamoId: prestamo.id }, 'Book lent successfully')
+    // Send notification email to admins
+    const emailSent = await emailService.sendBookBorrowedNotification({
+      bookTitle: libro.titulo,
+      bookAuthor: libro.autores,
+      borrowerName: borrower,
+      borrowerEmail: auth.user.email!,
+      dueDate: fechaLimite,
+    })
+
+    // Mark email as sent in database
+    if (emailSent) {
+      await auth.supabase
+        .from('prestamos')
+        .update({ email_borrowed_sent: true })
+        .eq('id', prestamo.id)
+        .catch((err) => {
+          apiLogger.warn({ err }, 'Failed to mark email as sent')
+        })
+    }
+
+    apiLogger.info(
+      { isbn, borrower, prestamoId: prestamo.id, emailSent },
+      'Book lent successfully'
+    )
 
     return NextResponse.json({
       message: 'Libro prestado exitosamente',
