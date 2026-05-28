@@ -45,6 +45,60 @@ interface RenewalConfirmationData {
 }
 
 /**
+ * Envía confirmación de préstamo al usuario
+ */
+export async function sendBookBorrowedToUser(data: BookBorrowedData) {
+  try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
+    const formattedDate = data.dueDate.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #27ae60;">✅ Libro Prestado Exitosamente</h2>
+        <p>Hola <strong>${data.borrowerName}</strong>,</p>
+        <p>Tu solicitud de préstamo ha sido registrada. Aquí están los detalles:</p>
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>📖 Libro:</strong> ${data.bookTitle}</p>
+          ${data.bookAuthor ? `<p><strong>✍️ Autor:</strong> ${data.bookAuthor}</p>` : ''}
+          <p><strong>📅 Fecha de Vencimiento:</strong> ${formattedDate}</p>
+          <p style="color: #e74c3c; margin-top: 10px;"><strong>⏰ Importante:</strong> Debes devolver el libro antes de esta fecha.</p>
+        </div>
+        <p>Una semana antes del vencimiento recibirás un recordatorio en tu correo.</p>
+        <p>Si necesitas renovar el préstamo, podrás hacerlo desde el portal LEEPE.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          Si tienes preguntas, contacta a bizops@lavictoria.pe
+        </p>
+      </div>
+    `
+
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: data.borrowerEmail,
+      subject: `[LEEPE] Confirmación: Prestado "${data.bookTitle}"`,
+      html,
+    })
+
+    console.log('Book borrowed confirmation sent to:', data.borrowerEmail)
+    return true
+  } catch (error) {
+    console.error('Exception in sendBookBorrowedToUser:', error)
+    return false
+  }
+}
+
+/**
  * Envía notificación a admins cuando se solicita un préstamo
  */
 export async function sendBookBorrowedNotification(data: BookBorrowedData) {
@@ -137,6 +191,90 @@ export async function sendRenewalReminderEmail(data: RenewalReminderData) {
     return true
   } catch (error) {
     console.error('Exception in sendRenewalReminderEmail:', error)
+    return false
+  }
+}
+
+/**
+ * Envía recordatorio a admins sobre préstamos que vencen en 7 días
+ */
+export async function sendExpiringLoansReminderToAdmins(data: {
+  loans: Array<{
+    bookTitle: string
+    borrowerName: string
+    borrowerEmail: string
+    daysUntilExpiry: number
+    dueDate: Date
+  }>
+}) {
+  try {
+    if (!data.loans || data.loans.length === 0) {
+      console.log('No loans to remind admins about')
+      return true
+    }
+
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
+    const loansHtml = data.loans
+      .map((loan) => {
+        const formattedDate = loan.dueDate.toLocaleDateString('es-ES', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+        return `
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${loan.bookTitle}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${loan.borrowerName}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">${loan.borrowerEmail}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${formattedDate}</td>
+          </tr>
+        `
+      })
+      .join('')
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #e74c3c;">⏰ Recordatorio: Préstamos Próximos a Vencer</h2>
+        <p>Se han detectado <strong>${data.loans.length}</strong> préstamo(s) que vence(n) en aproximadamente 7 días:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <thead>
+            <tr style="background: #f0f0f0;">
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Libro</th>
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Usuario</th>
+              <th style="padding: 10px; text-align: left; border-bottom: 2px solid #333;">Email</th>
+              <th style="padding: 10px; text-align: center; border-bottom: 2px solid #333;">Vencimiento</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${loansHtml}
+          </tbody>
+        </table>
+        <p>Considera contactar a estos usuarios para asegurar la devolución o renovación del libro.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          No responder a este email.
+        </p>
+      </div>
+    `
+
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: LOAN_CONFIG.ADMIN_EMAILS.join(','),
+      subject: `[LEEPE] ⏰ ${data.loans.length} préstamo(s) próximo(s) a vencer`,
+      html,
+    })
+
+    console.log('Expiring loans reminder sent to admins:', LOAN_CONFIG.ADMIN_EMAILS)
+    return true
+  } catch (error) {
+    console.error('Exception in sendExpiringLoansReminderToAdmins:', error)
     return false
   }
 }

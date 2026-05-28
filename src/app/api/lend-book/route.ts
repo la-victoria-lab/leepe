@@ -108,14 +108,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al registrar el préstamo' }, { status: 500 })
     }
 
-    // Send notification email to admins
-    const emailSent = await emailService.sendBookBorrowedNotification({
-      bookTitle: libro.titulo,
-      bookAuthor: libro.autores,
-      borrowerName: borrower,
-      borrowerEmail: auth.user.email!,
-      dueDate: fechaLimite,
-    })
+    // Send notification emails (to user and admins)
+    const [emailToUserSent, emailToAdminsSent] = await Promise.all([
+      emailService.sendBookBorrowedToUser({
+        bookTitle: libro.titulo,
+        bookAuthor: libro.autores,
+        borrowerName: borrower,
+        borrowerEmail: auth.user.email!,
+        dueDate: fechaLimite,
+      }),
+      emailService.sendBookBorrowedNotification({
+        bookTitle: libro.titulo,
+        bookAuthor: libro.autores,
+        borrowerName: borrower,
+        borrowerEmail: auth.user.email!,
+        dueDate: fechaLimite,
+      }),
+    ])
+    const emailSent = emailToUserSent || emailToAdminsSent
 
     // Mark email as sent in database
     if (emailSent) {

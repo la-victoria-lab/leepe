@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
+import { LOAN_CONFIG } from '@/lib/loan-config'
 
 type WelcomeScreenProps = {
   userName: string
@@ -112,7 +113,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al renovar')
       await fetchPrestamos()
-      setRenewSuccess('¡Renovado! +14 días')
+      setRenewSuccess(`¡Renovado! +${LOAN_CONFIG.RENEWAL_DAYS} días`)
       setTimeout(() => setRenewSuccess(''), 3000)
     } catch (err) {
       setReturnError(err instanceof Error ? err.message : 'Error al renovar')
@@ -271,7 +272,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
                             disabled={!!renewingId}
                             className="h-7 px-2 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
                           >
-                            {renewingId === String(prestamo.id) ? '...' : '+14d'}
+                            {renewingId === String(prestamo.id) ? '...' : `+${LOAN_CONFIG.RENEWAL_DAYS}d`}
                           </Button>
                           <Button
                             size="sm"

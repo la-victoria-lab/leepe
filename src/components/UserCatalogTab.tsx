@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Search, BookOpen, CheckCircle, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LOAN_CONFIG } from '@/lib/loan-config'
 
 type Libro = {
   isbn: string
@@ -57,7 +58,7 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al prestar')
 
-      setSuccessMsg(`¡Prestado! Devuélvelo en 14 días`)
+      setSuccessMsg(`¡Prestado! Devuélvelo en ${LOAN_CONFIG.INITIAL_DAYS} días`)
       setTimeout(() => setSuccessMsg(''), 4000)
       await fetchLibros(search)
       onBorrow?.()

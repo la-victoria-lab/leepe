@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 
     let sentCount = 0
     let errorCount = 0
+    const expiringLoans = []
 
     // Procesar cada préstamo
     for (const loan of loans) {
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
           ? loan.persona
           : `${loan.persona}@lavictoria.pe`
 
-        // Enviar email
+        // Enviar email al usuario
         const sent = await emailService.sendRenewalReminderEmail({
           bookTitle: libro.titulo,
           borrowerEmail,
@@ -94,11 +95,26 @@ export async function GET(request: NextRequest) {
             errorCount++
           } else {
             sentCount++
+            // Agregar a la lista para notificación a admins
+            expiringLoans.push({
+              bookTitle: libro.titulo,
+              borrowerName: loan.persona,
+              borrowerEmail,
+              daysUntilExpiry: daysLeft,
+              dueDate,
+            })
           }
         } else {
           errorCount++
         }
       }
+    }
+
+    // Enviar notificación a admins si hay préstamos próximos a vencer
+    if (expiringLoans.length > 0) {
+      await emailService.sendExpiringLoansReminderToAdmins({
+        loans: expiringLoans,
+      })
     }
 
     return NextResponse.json({
@@ -107,6 +123,7 @@ export async function GET(request: NextRequest) {
       sent: sentCount,
       errors: errorCount,
       processed: sentCount + errorCount,
+      adminNotified: expiringLoans.length > 0,
     })
   } catch (error) {
     console.error('Exception in send-loan-reminders:', error)
