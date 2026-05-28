@@ -1,8 +1,9 @@
 import nodemailer from 'nodemailer'
+import type { Transporter } from 'nodemailer'
 import { LOAN_CONFIG } from './loan-config'
 
 // Crear transporte de Gmail
-const createTransporter = () => {
+const createTransporter = (): Transporter | null => {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_PASSWORD) {
     console.error('Missing GMAIL_USER or GMAIL_PASSWORD environment variables')
     return null
