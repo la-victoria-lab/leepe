@@ -32,8 +32,23 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
     const fetchPrestamos = async () => {
       try {
         const res = await fetch('/api/loans-history')
-        const data = await res.json()
-        setPrestamos(Array.isArray(data) ? data : [])
+        const rawData = await res.json()
+
+        // Transformar datos del API al formato esperado
+        const transformedData = Array.isArray(rawData) ? rawData.map((p: any) => ({
+          id: String(p.id),
+          libro_isbn: p.libro_isbn,
+          libro_titulo: p.libros?.titulo || 'Sin título',
+          libro_autores: p.libros?.autores || null,
+          libro_thumbnail: p.libros?.thumbnail || null,
+          fecha_prestamo: p.fecha_prestamo,
+          fecha_limite: p.fecha_limite || '',
+          devuelto: p.devuelto,
+          fecha_devolucion: p.fecha_devolucion,
+          renewal_count: p.renewal_count || 0,
+        })) : []
+
+        setPrestamos(transformedData)
       } catch (err) {
         console.error('Error fetching prestamos:', err)
       } finally {
