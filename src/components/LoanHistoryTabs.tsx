@@ -99,10 +99,10 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
           const daysLeft = daysUntilDue(new Date(prestamo.fecha_limite))
           const status = getLoanStatus(new Date(prestamo.fecha_limite))
           const statusColor =
-            status === 'vigente'
-              ? daysLeft > 7
-                ? 'bg-green-50 border-green-200 text-green-700'
-                : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+            status === 'ok'
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : status === 'warning'
+              ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
               : 'bg-red-50 border-red-200 text-red-700'
 
           return (
