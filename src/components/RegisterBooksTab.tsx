@@ -455,7 +455,7 @@ export default function RegisterBooksTab() {
 
               <Button
                 type="submit"
-                disabled={!manualIsbn.trim() || scanning}
+                disabled={scanning}
                 className="h-14 rounded-2xl text-lg font-bold bg-slate-900 text-white hover:bg-black"
               >
                 {scanning ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Buscando...</> : 'Registrar libro'}

@@ -28,20 +28,29 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
   const [errorMsg, setErrorMsg] = useState('')
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
 
-  const fetchLibros = useCallback(async (q: string) => {
+  const fetchLibros = useCallback(async (q: string, signal?: AbortSignal) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/user/catalog?q=${encodeURIComponent(q)}`)
+      const res = await fetch(`/api/user/catalog?q=${encodeURIComponent(q)}`, { signal })
       const data = await res.json()
       setLibros(Array.isArray(data) ? data : [])
+    } catch (err) {
+      // Ignorar AbortError cuando la búsqueda se cancela
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Error fetching libros:', err)
+      }
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    const timeout = setTimeout(() => fetchLibros(search), 300)
-    return () => clearTimeout(timeout)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => fetchLibros(search, controller.signal), 300)
+    return () => {
+      clearTimeout(timeout)
+      controller.abort()
+    }
   }, [search, fetchLibros])
 
   const handleBorrow = async (isbn: string) => {

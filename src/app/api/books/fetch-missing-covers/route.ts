@@ -22,14 +22,9 @@ export async function POST(request: NextRequest) {
     const auth = await requireCompanyUser()
     if (!auth.ok) return auth.response
 
-    // Verificar que el usuario sea admin
-    const { data: userRole } = await auth.supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', auth.user.id)
-      .single()
-
-    if (userRole?.role !== 'admin') {
+    // Verificar que el usuario sea admin (por email)
+    const ADMIN_EMAILS = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || []
+    if (!auth.user.email || !ADMIN_EMAILS.includes(auth.user.email)) {
       return NextResponse.json({ error: 'Solo admins pueden ejecutar esta operación' }, { status: 403 })
     }
 
