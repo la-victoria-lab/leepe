@@ -61,37 +61,46 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response
 
   const { isbn, espacio_id, titulo_manual, autores_manual } = await request.json() as {
-    isbn: string
+    isbn?: string
     espacio_id?: string | null
     titulo_manual?: string
     autores_manual?: string
   }
 
-  const cleanIsbn = isbn?.trim().replace(/[-\s]/g, '')
-  if (!cleanIsbn || !/^\d{10}(\d{3})?$/.test(cleanIsbn)) {
+  // Si viene ISBN, validar que sea válido (10 o 13 dígitos)
+  // Si no viene ISBN, está permitido (para libros sin ISBN como informes)
+  const cleanIsbn = isbn?.trim().replace(/[-\s]/g, '') || null
+  if (cleanIsbn && !/^\d{10}(\d{3})?$/.test(cleanIsbn)) {
     return NextResponse.json({ error: 'ISBN inválido (debe tener 10 o 13 dígitos)' }, { status: 400 })
   }
 
-  // Verificar duplicado
-  const { data: existing } = await auth.supabase
-    .from('libros')
-    .select('isbn, titulo')
-    .eq('isbn', cleanIsbn)
-    .maybeSingle()
+  // Si no hay ISBN ni título manual, error
+  if (!cleanIsbn && !titulo_manual?.trim()) {
+    return NextResponse.json({ error: 'Debes proporcionar un ISBN o un título' }, { status: 400 })
+  }
 
-  if (existing) {
-    return NextResponse.json({
-      registered: [],
-      duplicates: [{ isbn: existing.isbn, titulo: existing.titulo }],
-      notFound: [],
-      errors: [],
-    })
+  // Verificar duplicado (solo si hay ISBN)
+  if (cleanIsbn) {
+    const { data: existing } = await auth.supabase
+      .from('libros')
+      .select('isbn, titulo')
+      .eq('isbn', cleanIsbn)
+      .maybeSingle()
+
+    if (existing) {
+      return NextResponse.json({
+        registered: [],
+        duplicates: [{ isbn: existing.isbn, titulo: existing.titulo }],
+        notFound: [],
+        errors: [],
+      })
+    }
   }
 
   // Si viene con título manual (el usuario lo escribió a mano), registrar directo
   if (titulo_manual?.trim()) {
     const bookData: BookData = {
-      isbn: cleanIsbn,
+      isbn: cleanIsbn || '',  // Si no hay ISBN, usar string vacío (la BD puede tener NOT NULL)
       titulo: titulo_manual.trim(),
       autores: autores_manual ? [autores_manual.trim()] : null,
       descripcion: null,
@@ -101,7 +110,7 @@ export async function POST(request: NextRequest) {
     const { error: insertError } = await auth.supabase.from('libros').insert(bookData)
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
     return NextResponse.json({
-      registered: [{ isbn: cleanIsbn, titulo: bookData.titulo }],
+      registered: [{ isbn: cleanIsbn || 'SIN-ISBN', titulo: bookData.titulo }],
       duplicates: [], notFound: [], errors: [],
     })
   }

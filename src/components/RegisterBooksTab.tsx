@@ -157,10 +157,22 @@ export default function RegisterBooksTab() {
   const handleSubmitManual = async (e: React.FormEvent) => {
     e.preventDefault()
     const isbn = manualIsbn.trim().replace(/[-\s]/g, '')
-    if (!isbn) { setError('Ingresa un ISBN'); return }
-    if (!/^\d{10}(\d{3})?$/.test(isbn)) { setError('ISBN debe tener 10 o 13 dígitos'); return }
-    await registerIsbn(isbn)
-    setManualIsbn('')
+    // ISBN es opcional ahora - si no hay, igualmente se puede registrar con título manual
+    if (isbn && !/^\d{10}(\d{3})?$/.test(isbn)) {
+      setError('ISBN debe tener 10 o 13 dígitos');
+      return
+    }
+    if (!isbn) {
+      // Si no hay ISBN, mostrar formulario para ingresar título directamente
+      setNotFoundIsbn('SIN-ISBN')
+      setTituloManual('')
+      setAutoresManual('')
+      setManualIsbn('')
+    } else {
+      // Si hay ISBN, intentar buscarlo en las APIs
+      await registerIsbn(isbn)
+      setManualIsbn('')
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -450,12 +462,14 @@ export default function RegisterBooksTab() {
               </Button>
             </form>
           ) : (
-            /* ISBN no encontrado - mostrar formulario para ingresar título */
+            /* ISBN no encontrado o sin ISBN - mostrar formulario para ingresar título */
             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 space-y-3 animate-in fade-in slide-in-from-bottom-2">
               <p className="text-sm font-bold text-amber-800">
-                ISBN <span className="font-mono">{notFoundIsbn}</span> no encontrado en Google Books ni Open Library.
+                {notFoundIsbn === 'SIN-ISBN'
+                  ? 'Registrar libro sin ISBN'
+                  : `ISBN ${notFoundIsbn} no encontrado en Google Books ni Open Library`}
               </p>
-              <p className="text-xs text-amber-600">Ingresa el título para registrarlo manualmente:</p>
+              <p className="text-xs text-amber-600">Ingresa el título y autor para registrar manualmente:</p>
               <Input
                 placeholder="Título del libro *"
                 value={tituloManual}
@@ -470,7 +484,11 @@ export default function RegisterBooksTab() {
               />
               <div className="flex gap-2">
                 <Button
-                  onClick={() => registerIsbn(notFoundIsbn, tituloManual, autoresManual)}
+                  onClick={() => {
+                    // Si es SIN-ISBN, pasar empty string como ISBN
+                    const isbnToUse = notFoundIsbn === 'SIN-ISBN' ? '' : notFoundIsbn
+                    registerIsbn(isbnToUse, tituloManual, autoresManual)
+                  }}
                   disabled={!tituloManual.trim() || scanning}
                   className="flex-1 rounded-xl bg-slate-900 text-white"
                 >
