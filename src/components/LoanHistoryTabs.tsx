@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CheckCircle, Clock, Loader2, BookOpen } from 'lucide-react'
+import { CheckCircle, Clock, Loader2, BookOpen, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LOAN_CONFIG, daysUntilDue, getLoanStatus } from '@/lib/loan-config'
 
@@ -16,14 +16,17 @@ interface Prestamo {
   devuelto: boolean
   fecha_devolucion?: string
   renewal_count: number
+  calificacion?: number
+  comentario?: string
 }
 
 interface LoanHistoryTabsProps {
   onRenew?: (prestamoId: string) => void
   renewingId?: string | null
+  refreshTrigger?: number
 }
 
-export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabsProps) {
+export default function LoanHistoryTabs({ onRenew, renewingId, refreshTrigger }: LoanHistoryTabsProps) {
   const [prestamos, setPrestamos] = useState<Prestamo[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'activos' | 'devueltos'>('activos')
@@ -48,6 +51,10 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
           devuelto: boolean
           fecha_devolucion?: string
           renewal_count?: number
+          book_ratings?: Array<{
+            rating: number
+            comentario: string | null
+          }>
         }
 
         const transformedData = Array.isArray(rawData) ? rawData.map((p: RawPrestamo) => ({
@@ -61,6 +68,8 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
           devuelto: p.devuelto,
           fecha_devolucion: p.fecha_devolucion,
           renewal_count: p.renewal_count || 0,
+          calificacion: p.book_ratings?.[0]?.rating || undefined,
+          comentario: p.book_ratings?.[0]?.comentario || undefined,
         })) : []
 
         setPrestamos(transformedData)
@@ -72,7 +81,7 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
     }
 
     fetchPrestamos()
-  }, [])
+  }, [refreshTrigger])
 
   const prestamoActivos = prestamos.filter((p) => !p.devuelto)
   const prestamoDevueltos = prestamos.filter((p) => p.devuelto)
@@ -148,8 +157,31 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
                     </p>
                   </div>
                 ) : (
-                  <div className="text-xs opacity-75">
+                  <div className="text-xs opacity-75 space-y-1">
                     <p>Devuelto: {new Date(prestamo.fecha_devolucion || '').toLocaleDateString()}</p>
+                    {prestamo.calificacion && (
+                      <div className="flex items-center gap-1">
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={12}
+                              className={`${
+                                star <= prestamo.calificacion!
+                                  ? 'fill-amber-400 text-amber-400'
+                                  : 'text-slate-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs font-semibold">
+                          {prestamo.calificacion}/5
+                        </span>
+                      </div>
+                    )}
+                    {prestamo.comentario && (
+                      <p className="text-xs italic text-slate-500">"{prestamo.comentario}"</p>
+                    )}
                   </div>
                 )}
               </div>

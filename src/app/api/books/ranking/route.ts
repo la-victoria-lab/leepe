@@ -15,45 +15,53 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const limit = parseInt(searchParams.get('limit') || '10')
 
-  // Obtener ranking de libros con sus estadísticas de rating
-  const { data: ranking, error } = await auth.supabase
+  // Obtener ranking de libros con sus estadísticas de rating + info del libro
+  const { data: ratingStats, error: ratingError } = await auth.supabase
     .from('libro_rating_stats')
-    .select(`
-      isbn,
-      promedio_rating,
-      total_ratings,
-      libros(titulo, autores, thumbnail)
-    `)
-    .gt('total_ratings', 0) // Solo libros que tienen al menos una calificación
+    .select('isbn, promedio_rating, total_ratings')
+    .gt('total_ratings', 0)
     .order('promedio_rating', { ascending: false })
     .order('total_ratings', { ascending: false })
     .limit(limit)
 
-  if (error) {
-    console.error('Error fetching ranking:', error)
+  if (ratingError) {
+    console.error('Error fetching rating stats:', ratingError)
     return NextResponse.json(
-      { error: error.message },
+      { error: ratingError.message },
       { status: 500 }
     )
   }
 
-  // Formatear respuesta
-  interface RankingItem {
-    isbn: string
-    promedio_rating: string | number
-    total_ratings: number
-    libros?: Array<{
-      titulo: string
-      autores: string[] | null
-      thumbnail: string | null
-    }>
+  // Obtener datos de los libros
+  const isbns = ratingStats.map(r => r.isbn)
+  const { data: libros, error: librosError } = await auth.supabase
+    .from('libros')
+    .select('isbn, titulo, autores, thumbnail')
+    .in('isbn', isbns)
+
+  if (librosError) {
+    console.error('Error fetching libros:', librosError)
+    return NextResponse.json(
+      { error: librosError.message },
+      { status: 500 }
+    )
   }
 
-  const formattedRanking = ranking.map((item: RankingItem) => ({
+  // Combinar datos
+  const librosMap = new Map(libros.map(l => [l.isbn, l]))
+  const ranking = ratingStats.map(r => ({
+    isbn: r.isbn,
+    promedio_rating: r.promedio_rating,
+    total_ratings: r.total_ratings,
+    libro: librosMap.get(r.isbn),
+  }))
+
+  // Formatear respuesta
+  const formattedRanking = ranking.map((item) => ({
     isbn: item.isbn,
-    titulo: item.libros?.[0]?.titulo || 'Sin título',
-    autores: item.libros?.[0]?.autores || null,
-    thumbnail: item.libros?.[0]?.thumbnail || null,
+    titulo: item.libro?.titulo || 'Sin título',
+    autores: item.libro?.autores || null,
+    thumbnail: item.libro?.thumbnail || null,
     promedioRating: parseFloat(String(item.promedio_rating)) || 0,
     totalRatings: item.total_ratings || 0,
   }))

@@ -21,9 +21,11 @@ export default function BookRankingSection() {
       try {
         const res = await fetch('/api/books/ranking?limit=10')
         const data = await res.json()
+        console.log('Ranking data:', data)
         setRanking(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error('Error fetching ranking:', err)
+        setRanking([])
       } finally {
         setLoading(false)
       }

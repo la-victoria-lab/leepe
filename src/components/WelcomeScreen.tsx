@@ -69,6 +69,7 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   const [isScrolled, setIsScrolled] = useState(false)
   const [rateModalOpen, setRateModalOpen] = useState(false)
   const [justReturnedPrestamo, setJustReturnedPrestamo] = useState<Prestamo | null>(null)
+  const [historyRefresh, setHistoryRefresh] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollY } = useScroll({ container: containerRef })
 
@@ -317,13 +318,17 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
               <div className="animate-pulse h-2 w-24 bg-slate-200 rounded-full mx-auto" />
             </div>
           ) : (
-            <LoanHistoryTabs onRenew={(prestamoId) => {
-              // Encontrar el préstamo y ejecutar el renew
-              const prestamo = prestamos.find(p => String(p.id) === prestamoId)
-              if (prestamo) {
-                handleRenew(prestamo)
-              }
-            }} renewingId={renewingId} />
+            <LoanHistoryTabs
+              onRenew={(prestamoId) => {
+                // Encontrar el préstamo y ejecutar el renew
+                const prestamo = prestamos.find(p => String(p.id) === prestamoId)
+                if (prestamo) {
+                  handleRenew(prestamo)
+                }
+              }}
+              renewingId={renewingId}
+              refreshTrigger={historyRefresh}
+            />
           )}
         </div>
       </div>
@@ -403,7 +408,8 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
             setJustReturnedPrestamo(null)
           }}
           onSuccess={() => {
-            // Opcional: mostrar mensaje de éxito o actualizar algo
+            // Refrescar el historial de préstamos para mostrar la calificación
+            setHistoryRefresh(prev => prev + 1)
             console.log('Rating guardado exitosamente')
           }}
         />
