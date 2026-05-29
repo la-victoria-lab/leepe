@@ -180,7 +180,7 @@ export default function LoanHistoryTabs({ onRenew, renewingId, refreshTrigger }:
                       </div>
                     )}
                     {prestamo.comentario && (
-                      <p className="text-xs italic text-slate-500">"{prestamo.comentario}"</p>
+                      <p className="text-xs italic text-slate-500">&quot;{prestamo.comentario}&quot;</p>
                     )}
                   </div>
                 )}
