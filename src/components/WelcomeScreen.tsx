@@ -7,6 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 import { LOAN_CONFIG } from '@/lib/loan-config'
+import RateBookModal from './RateBookModal'
 
 type WelcomeScreenProps = {
   userName: string
@@ -65,6 +66,8 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
   const [renewingId, setRenewingId] = useState<string | null>(null)
   const [renewSuccess, setRenewSuccess] = useState<string>('')
   const [isScrolled, setIsScrolled] = useState(false)
+  const [rateModalOpen, setRateModalOpen] = useState(false)
+  const [justReturnedPrestamo, setJustReturnedPrestamo] = useState<Prestamo | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { scrollY } = useScroll({ container: containerRef })
 
@@ -148,6 +151,11 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
 
       const data = await response.json()
       await fetchPrestamos()
+
+      // Mostrar modal de calificación después de devolver
+      setJustReturnedPrestamo(confirmReturn)
+      setRateModalOpen(true)
+
       if (onReturnSuccess) {
         onReturnSuccess()
       }
@@ -361,6 +369,23 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Calificación */}
+      {justReturnedPrestamo && (
+        <RateBookModal
+          prestamoId={String(justReturnedPrestamo.id)}
+          libroTitulo={justReturnedPrestamo.libros.titulo}
+          isOpen={rateModalOpen}
+          onClose={() => {
+            setRateModalOpen(false)
+            setJustReturnedPrestamo(null)
+          }}
+          onSuccess={() => {
+            // Opcional: mostrar mensaje de éxito o actualizar algo
+            console.log('Rating guardado exitosamente')
+          }}
+        />
+      )}
     </div>
   )
 }
