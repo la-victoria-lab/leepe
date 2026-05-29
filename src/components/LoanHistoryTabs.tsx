@@ -31,7 +31,7 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
   useEffect(() => {
     const fetchPrestamos = async () => {
       try {
-        const res = await fetch('/api/user/prestamos')
+        const res = await fetch('/api/loans-history')
         const data = await res.json()
         setPrestamos(Array.isArray(data) ? data : [])
       } catch (err) {
