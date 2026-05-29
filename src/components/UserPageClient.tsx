@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, BookOpen, ScanBarcode, Library } from 'lucide-react'
+import { ArrowLeft, BookOpen, ScanBarcode, Library, Star } from 'lucide-react'
 import WelcomeScreen from './WelcomeScreen'
 import LendBookTab from './LendBookTab'
 import LogoutButton from './LogoutButton'
 import UserCatalogTab from './UserCatalogTab'
+import BookRankingSection from './BookRankingSection'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +15,7 @@ type UserPageClientProps = {
   embedded?: boolean
 }
 
-type ViewMode = 'welcome' | 'lend' | 'catalog'
+type ViewMode = 'welcome' | 'lend' | 'catalog' | 'discover'
 
 export default function UserPageClient({ userName, embedded = false }: UserPageClientProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('welcome')
@@ -111,6 +112,16 @@ export default function UserPageClient({ userName, embedded = false }: UserPageC
             </div>
             <UserCatalogTab onBorrow={() => setViewMode('welcome')} />
           </div>
+        ) : viewMode === 'discover' ? (
+          <div className="flex-1 h-full w-full overflow-hidden flex flex-col pb-16">
+            <div className="px-4 pt-4 pb-3 shrink-0">
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">Descubre</h2>
+              <p className="text-xs text-slate-400 font-medium">Libros mejor puntuados por la comunidad</p>
+            </div>
+            <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4">
+              <BookRankingSection />
+            </div>
+          </div>
         ) : (
           <div className="flex-1 h-full w-full overflow-y-auto no-scrollbar pb-16">
             <WelcomeScreen
@@ -129,6 +140,7 @@ export default function UserPageClient({ userName, embedded = false }: UserPageC
             { id: 'welcome' as ViewMode, icon: BookOpen, label: 'Mis libros' },
             { id: 'lend' as ViewMode, icon: ScanBarcode, label: 'Escanear', highlight: true },
             { id: 'catalog' as ViewMode, icon: Library, label: 'Catálogo' },
+            { id: 'discover' as ViewMode, icon: Star, label: 'Descubre' },
           ].map(({ id, icon: Icon, label, highlight }) => (
             <button
               key={id}

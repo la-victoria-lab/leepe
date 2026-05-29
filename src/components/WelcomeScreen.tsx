@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion'
 import { LOAN_CONFIG } from '@/lib/loan-config'
 import RateBookModal from './RateBookModal'
+import LoanHistoryTabs from './LoanHistoryTabs'
 
 type WelcomeScreenProps = {
   userName: string
@@ -303,6 +304,27 @@ export default function WelcomeScreen({ userName, onSelectLend, onReturnSuccess 
               </div>
             )}
           </div>
+        </div>
+
+        {/* Historial Completo (Activos + Devueltos) */}
+        <div className="w-full animate-in slide-in-from-bottom-4 duration-700 delay-100">
+          <div className="flex items-center gap-2 mb-4 px-1">
+            <Clock size={18} className="text-violet-600" />
+            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Historial</h3>
+          </div>
+          {loading ? (
+            <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-violet-100">
+              <div className="animate-pulse h-2 w-24 bg-slate-200 rounded-full mx-auto" />
+            </div>
+          ) : (
+            <LoanHistoryTabs onRenew={(prestamoId) => {
+              // Encontrar el préstamo y ejecutar el renew
+              const prestamo = prestamos.find(p => String(p.id) === prestamoId)
+              if (prestamo) {
+                handleRenew(prestamo)
+              }
+            }} renewingId={renewingId} />
+          )}
         </div>
       </div>
 
