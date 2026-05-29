@@ -115,6 +115,14 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  // En este punto, si no hay título manual, cleanIsbn debe tener un valor
+  if (!cleanIsbn) {
+    return NextResponse.json(
+      { error: 'ISBN requerido cuando no hay título manual' },
+      { status: 400 }
+    )
+  }
+
   // 1. Intentar Google Books
   let bookData = await fetchFromGoogleBooks(cleanIsbn)
 
