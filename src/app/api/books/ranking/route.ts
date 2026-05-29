@@ -38,12 +38,23 @@ export async function GET(request: NextRequest) {
   }
 
   // Formatear respuesta
-  const formattedRanking = ranking.map((item: any) => ({
+  interface RankingItem {
+    isbn: string
+    promedio_rating: number
+    total_ratings: number
+    libros?: {
+      titulo: string
+      autores: string[] | null
+      thumbnail: string | null
+    }
+  }
+
+  const formattedRanking = ranking.map((item: RankingItem) => ({
     isbn: item.isbn,
     titulo: item.libros?.titulo || 'Sin título',
     autores: item.libros?.autores || null,
     thumbnail: item.libros?.thumbnail || null,
-    promedioRating: parseFloat(item.promedio_rating) || 0,
+    promedioRating: parseFloat(String(item.promedio_rating)) || 0,
     totalRatings: item.total_ratings || 0,
   }))
 

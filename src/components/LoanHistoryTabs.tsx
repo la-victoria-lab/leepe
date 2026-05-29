@@ -35,7 +35,22 @@ export default function LoanHistoryTabs({ onRenew, renewingId }: LoanHistoryTabs
         const rawData = await res.json()
 
         // Transformar datos del API al formato esperado
-        const transformedData = Array.isArray(rawData) ? rawData.map((p: any) => ({
+        interface RawPrestamo {
+          id: string | number
+          libro_isbn: string
+          libros?: {
+            titulo: string
+            autores: string[] | null
+            thumbnail: string | null
+          }
+          fecha_prestamo: string
+          fecha_limite: string
+          devuelto: boolean
+          fecha_devolucion?: string
+          renewal_count?: number
+        }
+
+        const transformedData = Array.isArray(rawData) ? rawData.map((p: RawPrestamo) => ({
           id: String(p.id),
           libro_isbn: p.libro_isbn,
           libro_titulo: p.libros?.titulo || 'Sin título',
