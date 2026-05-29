@@ -40,20 +40,20 @@ export async function GET(request: NextRequest) {
   // Formatear respuesta
   interface RankingItem {
     isbn: string
-    promedio_rating: number
+    promedio_rating: string | number
     total_ratings: number
-    libros?: {
+    libros?: Array<{
       titulo: string
       autores: string[] | null
       thumbnail: string | null
-    }
+    }>
   }
 
   const formattedRanking = ranking.map((item: RankingItem) => ({
     isbn: item.isbn,
-    titulo: item.libros?.titulo || 'Sin título',
-    autores: item.libros?.autores || null,
-    thumbnail: item.libros?.thumbnail || null,
+    titulo: item.libros?.[0]?.titulo || 'Sin título',
+    autores: item.libros?.[0]?.autores || null,
+    thumbnail: item.libros?.[0]?.thumbnail || null,
     promedioRating: parseFloat(String(item.promedio_rating)) || 0,
     totalRatings: item.total_ratings || 0,
   }))
