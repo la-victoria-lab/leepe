@@ -32,12 +32,18 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Obtener datos de los libros
+  // Obtener datos de los libros y sus comentarios
   const isbns = ratingStats.map(r => r.isbn)
   const { data: libros, error: librosError } = await auth.supabase
     .from('libros')
     .select('isbn, titulo, autores, thumbnail')
     .in('isbn', isbns)
+
+  // Obtener comentarios de los ratings con info del prestamo
+  const { data: allRatings } = await auth.supabase
+    .from('book_ratings')
+    .select('prestamo_id, rating, comentario, prestamos(libro_isbn, persona)')
+    .order('created_at', { ascending: false })
 
   if (librosError) {
     console.error('Error fetching libros:', librosError)
@@ -49,11 +55,45 @@ export async function GET(request: NextRequest) {
 
   // Combinar datos
   const librosMap = new Map(libros.map(l => [l.isbn, l]))
+
+  // Agrupar ratings por ISBN
+  interface PrestamoInfo {
+    libro_isbn: string
+    persona: string
+  }
+
+  const ratingsByIsbn = new Map<string, Array<{
+    rating: number
+    comentario: string | null
+    usuario: string
+  }>>()
+
+  if (allRatings && Array.isArray(allRatings)) {
+    for (const rating of allRatings) {
+      const prestamos = Array.isArray(rating.prestamos) ? rating.prestamos[0] : rating.prestamos
+      const prestamoInfo = prestamos as PrestamoInfo | undefined
+      const isbn = prestamoInfo?.libro_isbn
+      const usuario = prestamoInfo?.persona || 'Usuario'
+
+      if (isbn) {
+        if (!ratingsByIsbn.has(isbn)) {
+          ratingsByIsbn.set(isbn, [])
+        }
+        ratingsByIsbn.get(isbn)!.push({
+          rating: rating.rating,
+          comentario: rating.comentario,
+          usuario,
+        })
+      }
+    }
+  }
+
   const ranking = ratingStats.map(r => ({
     isbn: r.isbn,
     promedio_rating: r.promedio_rating,
     total_ratings: r.total_ratings,
     libro: librosMap.get(r.isbn),
+    comentarios: ratingsByIsbn.get(r.isbn) || [],
   }))
 
   // Formatear respuesta
@@ -64,6 +104,7 @@ export async function GET(request: NextRequest) {
     thumbnail: item.libro?.thumbnail || null,
     promedioRating: parseFloat(String(item.promedio_rating)) || 0,
     totalRatings: item.total_ratings || 0,
+    comentarios: item.comentarios,
   }))
 
   return NextResponse.json(formattedRanking)
