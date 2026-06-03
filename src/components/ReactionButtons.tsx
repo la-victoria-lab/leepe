@@ -112,7 +112,7 @@ export default function ReactionButtons({
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               bookRatingId,
-              reactionType,
+              tipo: reactionType,
             }),
           })
 

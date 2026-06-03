@@ -5,6 +5,7 @@ import { Star, Loader2, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import ReactionButtons from './ReactionButtons'
 
 interface Comentario {
+  id: string
   rating: number
   comentario: string | null
   usuario: string
@@ -164,6 +165,7 @@ export default function BookRankingSection() {
                       <p className="text-xs text-slate-600 italic">&quot;{comentario.comentario}&quot;</p>
                     )}
                     <ReactionButtons
+                      bookRatingId={comentario.id}
                       likeCount={comentario.likeCount || 0}
                       loveCount={comentario.loveCount || 0}
                       userReaction={comentario.userReaction || null}

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
   // Obtener comentarios de los ratings con info del prestamo
   const { data: allRatings } = await auth.supabase
     .from('book_ratings')
-    .select('prestamo_id, rating, comentario, prestamos(libro_isbn, persona)')
+    .select('id, prestamo_id, rating, comentario, prestamos(libro_isbn, persona)')
     .order('created_at', { ascending: false })
 
   if (librosError) {
@@ -53,8 +53,32 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // Obtener todas las reacciones para estos ratings
+  const ratingIds = allRatings?.map(r => r.id) || []
+  const { data: allReactions } = await auth.supabase
+    .from('book_rating_reactions')
+    .select('book_rating_id, tipo, usuario_id')
+    .in('book_rating_id', ratingIds)
+
   // Combinar datos
   const librosMap = new Map(libros.map(l => [l.isbn, l]))
+
+  // Mapear reacciones por rating ID
+  const reactionsByRating = (allReactions || []).reduce((acc, reaction) => {
+    if (!acc[reaction.book_rating_id]) {
+      acc[reaction.book_rating_id] = { likes: 0, loves: 0, userReaction: null as 'like' | 'love' | null }
+    }
+    if (reaction.tipo === 'like') {
+      acc[reaction.book_rating_id].likes++
+    } else if (reaction.tipo === 'love') {
+      acc[reaction.book_rating_id].loves++
+    }
+    // Si la reacción es del usuario actual, marcarla
+    if (reaction.usuario_id === auth.user.id) {
+      acc[reaction.book_rating_id].userReaction = reaction.tipo
+    }
+    return acc
+  }, {} as Record<string, { likes: number; loves: number; userReaction: 'like' | 'love' | null }>)
 
   // Agrupar ratings por ISBN
   interface PrestamoInfo {
@@ -63,9 +87,13 @@ export async function GET(request: NextRequest) {
   }
 
   const ratingsByIsbn = new Map<string, Array<{
+    id: string
     rating: number
     comentario: string | null
     usuario: string
+    likeCount?: number
+    loveCount?: number
+    userReaction?: 'like' | 'love' | null
   }>>()
 
   if (allRatings && Array.isArray(allRatings)) {
@@ -74,15 +102,20 @@ export async function GET(request: NextRequest) {
       const prestamoInfo = prestamos as PrestamoInfo | undefined
       const isbn = prestamoInfo?.libro_isbn
       const usuario = prestamoInfo?.persona || 'Usuario'
+      const reactions = reactionsByRating[rating.id] || { likes: 0, loves: 0, userReaction: null }
 
       if (isbn) {
         if (!ratingsByIsbn.has(isbn)) {
           ratingsByIsbn.set(isbn, [])
         }
         ratingsByIsbn.get(isbn)!.push({
+          id: rating.id,
           rating: rating.rating,
           comentario: rating.comentario,
           usuario,
+          likeCount: reactions.likes,
+          loveCount: reactions.loves,
+          userReaction: reactions.userReaction,
         })
       }
     }
