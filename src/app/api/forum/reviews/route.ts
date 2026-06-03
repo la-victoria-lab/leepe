@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         { count: 'exact' }
       )
 
-    // Ordenamiento (sin paginación aún, la haremos después de filtrar)
+    // Ordenamiento
     if (sort === 'rating') {
       query = query.order('rating', { ascending: false })
     } else {
@@ -83,7 +83,9 @@ export async function GET(request: NextRequest) {
       query = query.order('fecha_creacion', { ascending: false })
     }
 
+    // Sin paginación aún - obtener todos para filtrar en memoria
     const { data: ratings, error: ratingsError, count: totalCount } = await query
+      .limit(1000) // Safety limit para no sobrecargar
 
     if (ratingsError) {
       console.error('[forum/reviews] Error fetching ratings:', ratingsError)
@@ -96,6 +98,8 @@ export async function GET(request: NextRequest) {
     if (!ratings || ratings.length === 0) {
       return NextResponse.json({
         reviews: [],
+        hasMore: false,
+        books: [],
         pagination: {
           page,
           limit,
