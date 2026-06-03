@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { Star, Loader2, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
+import ReactionButtons from './ReactionButtons'
 
 interface Comentario {
   rating: number
   comentario: string | null
   usuario: string
+  likeCount?: number
+  loveCount?: number
+  userReaction?: 'like' | 'love' | null
 }
 
 interface RankedBook {
@@ -139,7 +143,7 @@ export default function BookRankingSection() {
             {isExpanded && tieneComentarios && libro.comentarios && (
               <div className="border-t border-violet-100 bg-violet-50/50 p-4 space-y-3">
                 {libro.comentarios.map((comentario, idx) => (
-                  <div key={idx} className="space-y-1">
+                  <div key={idx} className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -159,6 +163,11 @@ export default function BookRankingSection() {
                     {comentario.comentario && (
                       <p className="text-xs text-slate-600 italic">&quot;{comentario.comentario}&quot;</p>
                     )}
+                    <ReactionButtons
+                      likeCount={comentario.likeCount || 0}
+                      loveCount={comentario.loveCount || 0}
+                      userReaction={comentario.userReaction || null}
+                    />
                   </div>
                 ))}
               </div>

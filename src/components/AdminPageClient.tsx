@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpenCheck, Library, MapPin, UploadCloud, User, LayoutDashboard, QrCode, ShieldCheck } from 'lucide-react'
+import { BookOpenCheck, Library, MapPin, UploadCloud, User, LayoutDashboard, QrCode, ShieldCheck, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import RegisterBooksTab from './RegisterBooksTab'
@@ -12,6 +12,7 @@ import EspaciosTab from './EspaciosTab'
 import DashboardTab from './DashboardTab'
 import QRGeneratorTab from './QRGeneratorTab'
 import RolesTab from './RolesTab'
+import AdminForumTab from './AdminForumTab'
 
 import { DesktopNav } from './admin/DesktopNav'
 import { MobileNav } from './admin/MobileNav'
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'register', label: 'Carga', icon: UploadCloud, color: 'text-orange-500' },
   { id: 'qr', label: 'QR', icon: QrCode, color: 'text-teal-500' },
   { id: 'roles', label: 'Roles', icon: ShieldCheck, color: 'text-indigo-500' },
+  { id: 'forum', label: 'Foro', icon: MessageCircle, color: 'text-blue-500' },
   { id: 'user', label: 'Usuario', icon: User, color: 'text-pink-500' },
 ]
 
@@ -114,6 +116,16 @@ export default function AdminPageClient({ userName }: AdminPageClientProps) {
               {viewMode === 'roles' && (
                 <div className="pt-4 md:pt-0">
                   <RolesTab />
+                </div>
+              )}
+
+              {viewMode === 'forum' && (
+                <div className="pt-4 md:pt-0">
+                  <div className="mb-6 hidden md:block">
+                    <h2 className="text-3xl font-black text-slate-800 mb-2 tracking-tight">Foro</h2>
+                    <p className="text-slate-500 font-medium">Moderar y gestionar temas de la comunidad</p>
+                  </div>
+                  <AdminForumTab />
                 </div>
               )}
             </div>
