@@ -1,18 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { BookOpenCheck, Library, MapPin, UploadCloud, User, LayoutDashboard, QrCode, ShieldCheck, MessageCircle } from 'lucide-react'
+import { BookOpenCheck, Library, UploadCloud, User, LayoutDashboard, ShieldCheck, MessageCircle, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import RegisterBooksTab from './RegisterBooksTab'
 import LoansHistory from './LoansHistory'
 import UserPageClient from './UserPageClient'
 import BookCatalog from './BookCatalog'
-import EspaciosTab from './EspaciosTab'
 import DashboardTab from './DashboardTab'
-import QRGeneratorTab from './QRGeneratorTab'
 import RolesTab from './RolesTab'
 import AdminForumTab from './AdminForumTab'
+import VerifyLoansTab from './VerifyLoansTab'
 
 import { DesktopNav } from './admin/DesktopNav'
 import { MobileNav } from './admin/MobileNav'
@@ -26,10 +25,9 @@ type AdminPageClientProps = {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
   { id: 'loans', label: 'Préstamos', icon: BookOpenCheck, color: 'text-blue-500' },
+  { id: 'verify', label: 'Verificar', icon: CheckCircle, color: 'text-green-500' },
   { id: 'catalog', label: 'Catálogo', icon: Library, color: 'text-violet-500' },
-  { id: 'espacios', label: 'Espacios', icon: MapPin, color: 'text-amber-500' },
   { id: 'register', label: 'Carga', icon: UploadCloud, color: 'text-orange-500' },
-  { id: 'qr', label: 'QR', icon: QrCode, color: 'text-teal-500' },
   { id: 'roles', label: 'Roles', icon: ShieldCheck, color: 'text-indigo-500' },
   { id: 'forum', label: 'Foro', icon: MessageCircle, color: 'text-blue-500' },
   { id: 'user', label: 'Usuario', icon: User, color: 'text-pink-500' },
@@ -92,9 +90,9 @@ export default function AdminPageClient({ userName }: AdminPageClientProps) {
                 </div>
               )}
 
-              {viewMode === 'espacios' && (
+              {viewMode === 'verify' && (
                 <div className="pt-4 md:pt-0">
-                  <EspaciosTab />
+                  <VerifyLoansTab />
                 </div>
               )}
 
@@ -104,12 +102,6 @@ export default function AdminPageClient({ userName }: AdminPageClientProps) {
                     Carga Masiva
                   </h2>
                   <RegisterBooksTab />
-                </div>
-              )}
-
-              {viewMode === 'qr' && (
-                <div className="pt-4 md:pt-0">
-                  <QRGeneratorTab />
                 </div>
               )}
 
