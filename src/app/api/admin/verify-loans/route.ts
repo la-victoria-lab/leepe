@@ -61,14 +61,16 @@ export async function GET() {
       fecha_prestamo: string
       fecha_limite: string
       devuelto: string
-      libros: LibroData | null
+      libros: LibroData[] | LibroData | null
       book_ratings: RatingData[] | null
     }
 
-    const formattedLoans = (loans || []).map((loan: LoanData) => {
-      const libro = loan.libros as LibroData | null
-      const rating = Array.isArray(loan.book_ratings) && loan.book_ratings.length > 0
-        ? (loan.book_ratings[0] as RatingData)
+    const formattedLoans = (loans || []).map((loan: unknown) => {
+      const loanData = loan as LoanData
+      const libros = Array.isArray(loanData.libros) ? loanData.libros[0] : loanData.libros
+      const libro = libros as LibroData | null
+      const rating = Array.isArray(loanData.book_ratings) && loanData.book_ratings.length > 0
+        ? (loanData.book_ratings[0] as RatingData)
         : null
 
       const autoresStr = Array.isArray(libro?.autores)
@@ -78,14 +80,14 @@ export async function GET() {
           : null
 
       return {
-        id: loan.id,
-        persona: loan.persona,
+        id: loanData.id,
+        persona: loanData.persona,
         libro_titulo: libro?.titulo || 'Título desconocido',
         libro_autores: autoresStr,
         libro_thumbnail: libro?.thumbnail || null,
-        fecha_prestamo: loan.fecha_prestamo,
-        fecha_limite: loan.fecha_limite,
-        fecha_devuelto: loan.devuelto,
+        fecha_prestamo: loanData.fecha_prestamo,
+        fecha_limite: loanData.fecha_limite,
+        fecha_devuelto: loanData.devuelto,
         rating: rating?.rating || null,
         comentario: rating?.comentario || null,
         status: 'Devuelto',

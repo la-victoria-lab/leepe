@@ -7,12 +7,12 @@ import { requireAdmin } from '@/lib/api-auth'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await requireAdmin()
   if (!auth.ok) return auth.response
 
-  const { id } = params
+  const { id } = await params
 
   try {
     // Verificar que el préstamo existe y está devuelto

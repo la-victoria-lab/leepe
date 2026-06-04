@@ -123,20 +123,20 @@ export default function VerifyLoansTab() {
                 </div>
 
                 {/* Rating */}
-                {loan.rating && (
+                {loan.rating !== null && (
                   <div className="flex items-center gap-1 mb-3">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <Star
                         key={star}
                         size={12}
                         className={
-                          star <= loan.rating
+                          star <= (loan.rating || 0)
                             ? 'fill-amber-400 text-amber-400'
                             : 'text-slate-300'
                         }
                       />
                     ))}
-                    <span className="text-xs text-slate-600 ml-1">{loan.rating}/5</span>
+                    <span className="text-xs text-slate-600 ml-1">{loan.rating || 0}/5</span>
                     {loan.comentario && (
                       <span className="text-xs text-slate-500 ml-2 italic">&quot;{loan.comentario}&quot;</span>
                     )}
