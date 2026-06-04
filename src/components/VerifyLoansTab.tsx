@@ -138,7 +138,7 @@ export default function VerifyLoansTab() {
                     ))}
                     <span className="text-xs text-slate-600 ml-1">{loan.rating}/5</span>
                     {loan.comentario && (
-                      <span className="text-xs text-slate-500 ml-2 italic">"{loan.comentario}"</span>
+                      <span className="text-xs text-slate-500 ml-2 italic">&quot;{loan.comentario}&quot;</span>
                     )}
                   </div>
                 )}

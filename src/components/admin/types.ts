@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 
-export type ViewMode = 'dashboard' | 'loans' | 'register' | 'catalog' | 'espacios' | 'qr' | 'roles' | 'forum' | 'user'
+export type ViewMode = 'dashboard' | 'loans' | 'verify' | 'register' | 'catalog' | 'roles' | 'forum' | 'user'
 
 export type NavItem = {
   id: ViewMode
