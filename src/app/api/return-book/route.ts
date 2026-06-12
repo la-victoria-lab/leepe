@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     // Get book info
     const { data: libro } = await auth.supabase.from('libros').select('*').eq('isbn', isbn).single()
 
-    // Send return confirmation email
+    // Send return confirmation emails (to user and admins)
     if (libro) {
       try {
         const autoresStr = Array.isArray(libro.autores)
@@ -93,13 +93,21 @@ export async function POST(request: NextRequest) {
             ? libro.autores
             : null
 
-        const emailSent = await emailService.sendBookReturnedToUser({
+        const emailData = {
           bookTitle: libro.titulo || 'Libro desconocido',
           bookAuthor: autoresStr,
           borrowerName: borrower,
           borrowerEmail: auth.user.email!,
           returnDate: new Date(),
-        })
+        }
+
+        // Send to user and admins in parallel
+        const [emailToUserSent, emailToAdminsSent] = await Promise.all([
+          emailService.sendBookReturnedToUser(emailData),
+          emailService.sendBookReturnedNotification(emailData),
+        ])
+
+        const emailSent = emailToUserSent || emailToAdminsSent
 
         if (!emailSent) {
           apiLogger.warn(
@@ -107,12 +115,15 @@ export async function POST(request: NextRequest) {
             'Email notification failed - check Gmail credentials'
           )
         } else {
-          apiLogger.info({ borrower, isbn, email: auth.user.email }, 'Return email sent successfully')
+          apiLogger.info(
+            { borrower, isbn, email: auth.user.email },
+            'Return emails sent successfully (user + admins)'
+          )
         }
       } catch (emailError) {
         apiLogger.error(
           { err: emailError, borrower, isbn },
-          'Error sending return confirmation email'
+          'Error sending return confirmation emails'
         )
         // Continue anyway - book return is still registered
       }

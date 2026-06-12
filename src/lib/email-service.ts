@@ -208,6 +208,56 @@ export async function sendBookReturnedToUser(data: BookReturnedData) {
 }
 
 /**
+ * Envía notificación a admins cuando se devuelve un libro
+ */
+export async function sendBookReturnedNotification(data: BookReturnedData) {
+  try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
+    const formattedDate = data.returnDate.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #2c3e50;">📖 Devolución Registrada</h2>
+        <p><strong>Libro:</strong> ${data.bookTitle}</p>
+        ${data.bookAuthor ? `<p><strong>Autor:</strong> ${data.bookAuthor}</p>` : ''}
+        <p><strong>Usuario que devolvió:</strong> ${data.borrowerName}</p>
+        <p><strong>Email:</strong> ${data.borrowerEmail}</p>
+        <p><strong>Fecha de Devolución:</strong> ${formattedDate}</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          La devolución está pendiente de verificación física.
+          No responder a este email.
+        </p>
+      </div>
+    `
+
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: LOAN_CONFIG.ADMIN_EMAILS.join(','),
+      subject: `[LEEPE] Devolución: ${data.bookTitle}`,
+      html,
+    })
+
+    console.log('Book return notification sent to admins:', LOAN_CONFIG.ADMIN_EMAILS)
+    return true
+  } catch (error) {
+    console.error('Exception in sendBookReturnedNotification:', error)
+    return false
+  }
+}
+
+/**
  * Envía recordatorio al usuario 1 semana antes del vencimiento
  */
 export async function sendRenewalReminderEmail(data: RenewalReminderData) {
