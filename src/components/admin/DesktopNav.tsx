@@ -1,9 +1,30 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ViewMode, NavItem } from './types'
 import LogoutButton from '@/components/LogoutButton'
+
+// Logo con V dentro de un libro
+function LogoIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Libro */}
+      <path d="M4 2h12v16H4z" fill="currentColor" />
+      {/* V negra en el medio */}
+      <text
+        x="10"
+        y="14"
+        textAnchor="middle"
+        fontSize="12"
+        fontWeight="900"
+        fill="black"
+        fontFamily="sans-serif"
+      >
+        V
+      </text>
+    </svg>
+  )
+}
 
 type DesktopNavProps = {
   viewMode: ViewMode
@@ -19,10 +40,7 @@ export function DesktopNav({ viewMode, onViewModeChange, userName, navItems }: D
         <div className="p-8 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-2 bg-gradient-to-tr from-violet-500 to-fuchsia-500 rounded-xl shadow-lg shadow-violet-500/30 text-white">
-              <Sparkles
-                size={20}
-                fill="currentColor"
-              />
+              <LogoIcon />
             </div>
             <h1
               className="text-2xl font-bold tracking-tight text-slate-800"
