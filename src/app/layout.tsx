@@ -5,7 +5,11 @@ import ServiceWorkerRegister from '@/components/ServiceWorkerRegister'
 export const metadata: Metadata = {
   title: 'LEE(PE)',
   description: 'Registra, presta y gestiona libros',
-  manifest: '/manifest.webmanifest',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -14,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0ea5e9',
+  themeColor: '#7C5CFF',
 }
 
 import { Outfit } from 'next/font/google'

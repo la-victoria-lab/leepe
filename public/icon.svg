@@ -1,62 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#7C3AED"/>
-      <stop offset="100%" stop-color="#4C1D95"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Fondo -->
-  <rect width="512" height="512" rx="104" fill="url(#bg)"/>
-
-  <!-- Libro abierto visto de frente -->
-  <!-- Portada izquierda -->
-  <path d="M 256 148
-           L 256 370
-           Q 256 378 248 380
-           L 120 400
-           Q 108 402 108 390
-           L 108 168
-           Q 108 156 120 154
-           Z"
-        fill="white"/>
-
-  <!-- Páginas izquierda (líneas) -->
-  <line x1="130" y1="195" x2="245" y2="183" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="130" y1="222" x2="245" y2="211" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="130" y1="249" x2="245" y2="239" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="130" y1="276" x2="245" y2="267" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="130" y1="303" x2="245" y2="295" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="130" y1="330" x2="245" y2="323" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-
-  <!-- Portada derecha -->
-  <path d="M 256 148
-           L 256 370
-           Q 256 378 264 380
-           L 392 400
-           Q 404 402 404 390
-           L 404 168
-           Q 404 156 392 154
-           Z"
-        fill="rgba(255,255,255,0.82)"/>
-
-  <!-- Páginas derecha (líneas) -->
-  <line x1="382" y1="195" x2="267" y2="183" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="382" y1="222" x2="267" y2="211" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="382" y1="249" x2="267" y2="239" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="382" y1="276" x2="267" y2="267" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="382" y1="303" x2="267" y2="295" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-  <line x1="382" y1="330" x2="267" y2="323" stroke="#7C3AED" stroke-width="7" stroke-linecap="round" opacity="0.2"/>
-
-  <!-- Lomo central (línea divisoria) -->
-  <rect x="252" y="145" width="8" height="232" rx="4" fill="#7C3AED" opacity="0.25"/>
-
-  <!-- V bold en el centro superior del libro -->
-  <text x="256" y="118"
-        font-family="Arial Black, sans-serif"
-        font-size="72"
-        font-weight="900"
-        fill="white"
-        text-anchor="middle"
-        letter-spacing="-2">V</text>
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="192" height="192" rx="44" fill="#7C5CFF"/>
+  
+  <!-- Book shape with gradient effect -->
+  <g transform="translate(96, 96)">
+    <!-- Left page -->
+    <path d="M -45 -50 L -5 -50 L -5 50 L -45 50 C -52 50 -58 44 -58 37 L -58 -37 C -58 -44 -52 -50 -45 -50" 
+          fill="#E8D4B8" stroke="#D4B896" stroke-width="2"/>
+    
+    <!-- Right page -->
+    <path d="M 5 -50 L 45 -50 C 52 -50 58 -44 58 -37 L 58 37 C 58 44 52 50 45 50 L 5 50 L 5 -50" 
+          fill="#F5E6D3" stroke="#D4B896" stroke-width="2"/>
+    
+    <!-- Center spine -->
+    <line x1="0" y1="-50" x2="0" y2="50" stroke="#D4B896" stroke-width="2"/>
+    
+    <!-- Page lines on left -->
+    <line x1="-40" y1="-40" x2="-10" y2="-40" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    <line x1="-40" y1="-30" x2="-10" y2="-30" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    <line x1="-40" y1="-20" x2="-10" y2="-20" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    
+    <!-- Page lines on right -->
+    <line x1="10" y1="-40" x2="40" y2="-40" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    <line x1="10" y1="-30" x2="40" y2="-30" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    <line x1="10" y1="-20" x2="40" y2="-20" stroke="#D4B896" stroke-width="1.5" opacity="0.6"/>
+    
+    <!-- V shape - bold and centered -->
+    <g transform="translate(0, -8)">
+      <!-- Left diagonal of V -->
+      <line x1="-18" y1="-22" x2="-2" y2="20" stroke="#2D1810" stroke-width="6" stroke-linecap="round"/>
+      <!-- Right diagonal of V -->
+      <line x1="18" y1="-22" x2="2" y2="20" stroke="#2D1810" stroke-width="6" stroke-linecap="round"/>
+    </g>
+  </g>
 </svg>
