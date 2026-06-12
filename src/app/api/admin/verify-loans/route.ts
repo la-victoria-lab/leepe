@@ -20,6 +20,7 @@ export async function GET() {
         fecha_prestamo,
         fecha_limite,
         devuelto,
+        fecha_devolucion,
         libros (
           titulo,
           autores,
@@ -33,7 +34,7 @@ export async function GET() {
       )
       .eq('devuelto', true)
       .eq('verificado', false)
-      .order('fecha_devuelto', { ascending: false })
+      .order('fecha_devolucion', { ascending: false })
 
     if (error) {
       console.error('[admin/verify-loans] Error:', error)
@@ -61,7 +62,8 @@ export async function GET() {
       libro_isbn: string
       fecha_prestamo: string
       fecha_limite: string
-      devuelto: string
+      devuelto: boolean
+      fecha_devolucion: string
       libros: LibroData[] | LibroData | null
       book_ratings: RatingData[] | null
     }
@@ -88,7 +90,7 @@ export async function GET() {
         libro_thumbnail: libro?.thumbnail || null,
         fecha_prestamo: loanData.fecha_prestamo,
         fecha_limite: loanData.fecha_limite,
-        fecha_devuelto: loanData.devuelto,
+        fecha_devuelto: loanData.fecha_devolucion,
         rating: rating?.rating || null,
         comentario: rating?.comentario || null,
         status: 'Devuelto',

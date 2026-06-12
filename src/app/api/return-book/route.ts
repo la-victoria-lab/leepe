@@ -86,19 +86,36 @@ export async function POST(request: NextRequest) {
 
     // Send return confirmation email
     if (libro) {
-      const autoresStr = Array.isArray(libro.autores)
-        ? libro.autores.join(', ')
-        : typeof libro.autores === 'string'
-          ? libro.autores
-          : null
+      try {
+        const autoresStr = Array.isArray(libro.autores)
+          ? libro.autores.join(', ')
+          : typeof libro.autores === 'string'
+            ? libro.autores
+            : null
 
-      await emailService.sendBookReturnedToUser({
-        bookTitle: libro.titulo || 'Libro desconocido',
-        bookAuthor: autoresStr,
-        borrowerName: borrower,
-        borrowerEmail: auth.user.email!,
-        returnDate: new Date(),
-      })
+        const emailSent = await emailService.sendBookReturnedToUser({
+          bookTitle: libro.titulo || 'Libro desconocido',
+          bookAuthor: autoresStr,
+          borrowerName: borrower,
+          borrowerEmail: auth.user.email!,
+          returnDate: new Date(),
+        })
+
+        if (!emailSent) {
+          apiLogger.warn(
+            { borrower, isbn, email: auth.user.email },
+            'Email notification failed - check Gmail credentials'
+          )
+        } else {
+          apiLogger.info({ borrower, isbn, email: auth.user.email }, 'Return email sent successfully')
+        }
+      } catch (emailError) {
+        apiLogger.error(
+          { err: emailError, borrower, isbn },
+          'Error sending return confirmation email'
+        )
+        // Continue anyway - book return is still registered
+      }
     }
 
     return NextResponse.json({
