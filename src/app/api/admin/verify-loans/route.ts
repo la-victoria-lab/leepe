@@ -32,6 +32,7 @@ export async function GET() {
       `
       )
       .eq('devuelto', true)
+      .eq('verificado', false)
       .order('fecha_devuelto', { ascending: false })
 
     if (error) {

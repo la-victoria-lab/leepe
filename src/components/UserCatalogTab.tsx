@@ -107,19 +107,58 @@ export default function UserCatalogTab({ onBorrow }: UserCatalogTabProps) {
         setFilterOptions(data.filters)
         setPagination(data.pagination)
 
-        // Generar sugerencias de búsqueda
+        // Generar sugerencias de búsqueda mejoradas
         if (newFilters.search && data.books.length > 0) {
-          const suggestions = Array.from(
-            new Set(
-              data.books
-                .slice(0, 5)
-                .map((libro) => libro.titulo)
-                .filter((titulo) =>
-                  titulo.toLowerCase().includes(newFilters.search.toLowerCase())
-                )
-            )
-          )
-          setSearchSuggestions(suggestions)
+          const searchLower = newFilters.search.toLowerCase()
+          const suggestions = new Set<string>()
+
+          // Agregar títulos encontrados que contienen el término de búsqueda
+          data.books.slice(0, 5).forEach((libro) => {
+            if (libro.titulo.toLowerCase().includes(searchLower)) {
+              suggestions.add(libro.titulo)
+            }
+            // Agregar autores si el libro contiene el término
+            if (libro.autores) {
+              if (Array.isArray(libro.autores)) {
+                libro.autores.forEach((autor: string) => {
+                  if (autor.toLowerCase().includes(searchLower)) {
+                    suggestions.add(autor)
+                  }
+                })
+              } else if (typeof libro.autores === 'string') {
+                const autoresStr = libro.autores as string
+                if (autoresStr.toLowerCase().includes(searchLower)) {
+                  suggestions.add(autoresStr)
+                }
+              }
+            }
+          })
+
+          // Agregar sugerencias de palabras clave relacionadas
+          const relatedKeywords: { [key: string]: string[] } = {
+            arte: ['diseño', 'arquitectura', 'pintura', 'escultura', 'fotografía'],
+            diseño: ['arte', 'arquitectura', 'ilustración', 'gráficos', 'web'],
+            historia: ['biografía', 'arqueología', 'civilización', 'cultura'],
+            ciencia: ['física', 'química', 'biología', 'astronomía', 'investigación'],
+            ficción: ['novela', 'fantasía', 'ciencia ficción', 'aventura', 'misterio'],
+            tecnología: ['programación', 'informática', 'desarrollo', 'web', 'software'],
+            negocios: ['emprendimiento', 'marketing', 'finanzas', 'management', 'economía'],
+            educación: ['aprendizaje', 'enseñanza', 'pedagogía', 'desarrollo', 'habilidades'],
+          }
+
+          // Buscar palabras clave relacionadas
+          Object.entries(relatedKeywords).forEach(([keyword, related]) => {
+            if (searchLower.includes(keyword) || keyword.includes(searchLower)) {
+              related.forEach((rel) => {
+                // Solo sugerir si no hay muchos resultados (menos de 3)
+                if (suggestions.size < 8) {
+                  suggestions.add(rel)
+                }
+              })
+            }
+          })
+
+          setSearchSuggestions(Array.from(suggestions))
         } else {
           setSearchSuggestions([])
         }

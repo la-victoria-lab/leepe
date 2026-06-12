@@ -39,7 +39,15 @@ export async function GET(request: NextRequest) {
 
   // 2. Aplicar búsqueda de texto
   if (search.trim()) {
-    query = query.or(`titulo.ilike.%${search}%,autores.ilike.%${search}%`)
+    // Si el búsqueda parece un ISBN (solo dígitos de 10-13), buscar exacto
+    const isISBN = /^\d{10,13}$/.test(search.trim())
+
+    if (isISBN) {
+      query = query.eq('isbn', search.trim())
+    } else {
+      // Buscar en título, autores, descripción e ISBN (flexible)
+      query = query.or(`titulo.ilike.%${search}%,autores.ilike.%${search}%,descripcion.ilike.%${search}%,isbn.ilike.%${search}%`)
+    }
   }
 
   // 3. Aplicar filtro de disponibilidad

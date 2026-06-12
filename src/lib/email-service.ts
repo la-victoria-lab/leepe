@@ -44,6 +44,14 @@ interface RenewalConfirmationData {
   maxRenewals: number
 }
 
+interface BookReturnedData {
+  bookTitle: string
+  bookAuthor: string | null
+  borrowerName: string
+  borrowerEmail: string
+  returnDate: Date
+}
+
 /**
  * Envía confirmación de préstamo al usuario
  */
@@ -143,6 +151,58 @@ export async function sendBookBorrowedNotification(data: BookBorrowedData) {
     return true
   } catch (error) {
     console.error('Exception in sendBookBorrowedNotification:', error)
+    return false
+  }
+}
+
+/**
+ * Envía confirmación de devolución al usuario
+ */
+export async function sendBookReturnedToUser(data: BookReturnedData) {
+  try {
+    const transporter = createTransporter()
+    if (!transporter) {
+      console.error('Failed to create email transporter')
+      return false
+    }
+
+    const formattedDate = data.returnDate.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #27ae60;">✅ Devolución Registrada</h2>
+        <p>Hola <strong>${data.borrowerName}</strong>,</p>
+        <p>Tu devolución del siguiente libro ha sido registrada en el sistema:</p>
+        <p style="background: #f9f9f9; padding: 15px; border-left: 4px solid #27ae60; margin: 15px 0;">
+          <strong style="color: #27ae60;">📖 Libro:</strong> ${data.bookTitle}<br/>
+          ${data.bookAuthor ? `<strong>✍️ Autor:</strong> ${data.bookAuthor}<br/>` : ''}
+          <strong>📅 Fecha de Devolución:</strong> ${formattedDate}
+        </p>
+        <p style="color: #666;">El libro será verificado físicamente por el equipo administrativo en los próximos días.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="color: #666; font-size: 12px;">
+          Este es un mensaje automático del sistema LEEPE.
+          Si tienes preguntas, contacta a bizops@lavictoria.pe
+        </p>
+      </div>
+    `
+
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: data.borrowerEmail,
+      subject: `[LEEPE] Devolución Registrada: ${data.bookTitle}`,
+      html,
+    })
+
+    console.log('Book returned notification sent to:', data.borrowerEmail)
+    return true
+  } catch (error) {
+    console.error('Exception in sendBookReturnedToUser:', error)
     return false
   }
 }

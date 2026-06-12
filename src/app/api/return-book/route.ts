@@ -4,6 +4,7 @@ import { extractISBNFromImage } from '@/lib/isbn-extractor'
 import { requireCompanyUser } from '@/lib/api-auth'
 import { IsbnSchema, validateOrError } from '@/lib/validations'
 import { apiLogger } from '@/lib/logger'
+import * as emailService from '@/lib/email-service'
 
 function getBorrowerLabel(email: string, fullName: string | undefined | null) {
   const normalizedEmail = email.trim().toLowerCase()
@@ -82,6 +83,23 @@ export async function POST(request: NextRequest) {
 
     // Get book info
     const { data: libro } = await auth.supabase.from('libros').select('*').eq('isbn', isbn).single()
+
+    // Send return confirmation email
+    if (libro) {
+      const autoresStr = Array.isArray(libro.autores)
+        ? libro.autores.join(', ')
+        : typeof libro.autores === 'string'
+          ? libro.autores
+          : null
+
+      await emailService.sendBookReturnedToUser({
+        bookTitle: libro.titulo || 'Libro desconocido',
+        bookAuthor: autoresStr,
+        borrowerName: borrower,
+        borrowerEmail: auth.user.email!,
+        returnDate: new Date(),
+      })
+    }
 
     return NextResponse.json({
       message: 'Libro devuelto exitosamente',
