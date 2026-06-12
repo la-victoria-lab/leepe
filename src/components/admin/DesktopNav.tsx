@@ -9,19 +9,9 @@ function LogoIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
       {/* Libro */}
-      <path d="M4 2h12v16H4z" fill="currentColor" />
-      {/* V negra en el medio */}
-      <text
-        x="10"
-        y="14"
-        textAnchor="middle"
-        fontSize="12"
-        fontWeight="900"
-        fill="black"
-        fontFamily="sans-serif"
-      >
-        V
-      </text>
+      <rect x="4" y="2" width="12" height="16" fill="currentColor" rx="1" />
+      {/* V negra dentro del libro - forma triangular rellena */}
+      <polygon points="8,7 10,12 12,7" fill="black" />
     </svg>
   )
 }
